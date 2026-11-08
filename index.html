@@ -115,20 +115,26 @@ label,.legend{font-size:17px;font-weight:500}
 
 /* phones: one column, compact, fits one screen */
 @media (max-width:560px){
-  .page{padding-block:12px 130px}
+  /* fill the whole phone screen: the page is exactly one screen tall, the form stretches to the dock */
+  .page{display:flex;flex-direction:column;
+    min-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+    padding-block:12px calc(var(--dock-h,120px) + 14px)}
   .coach{font-size:13px}
   .top{grid-template-columns:minmax(0,1fr);gap:14px}
   .back{font-size:15px;padding:10px 16px}
   h1{font-size:clamp(30px,13.5vw,60px)}
   .intro{grid-column:1;font-size:14px;gap:8px}
-  form{margin-top:22px;gap:16px}
+  form{flex:1;margin-top:22px;gap:14px;justify-content:space-between}
   label,.legend{font-size:15px}
-  .input{padding:12px 14px;font-size:16px}
+  .input{padding:15px 14px;font-size:16px}
   .half{gap:10px}
-  .chip{font-size:14px;padding:9px 12px}
-  .check{font-size:14px;padding:11px 14px}
-  .submit{font-size:17px;padding:13px 22px}
-  .reset{font-size:15px;padding:13px 16px}
+  /* options become a full-width 2 x 2 grid */
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .chip{font-size:14px;padding:13px 10px}
+  .check{font-size:15px;padding:14px;align-self:stretch}
+  .row-end{display:grid;grid-template-columns:1fr auto;gap:10px}
+  .submit{font-size:18px;padding:16px 22px}
+  .reset{font-size:15px;padding:16px 18px}
   .stat{font-size:12px;padding:7px 8px}
   .cam{font-size:14px;padding:10px 14px}
   #preview{width:44px;height:44px}
@@ -220,6 +226,9 @@ function measure(){
 }
 addEventListener('resize',()=>requestAnimationFrame(measure));
 addEventListener('orientationchange',()=>setTimeout(measure,300));
+// reserve exactly the space the bottom bar takes, so the form can stretch down to it
+const dockEl=document.querySelector('.dock');
+new ResizeObserver(()=>{document.documentElement.style.setProperty('--dock-h',dockEl.offsetHeight+'px');requestAnimationFrame(measure)}).observe(dockEl);
 document.fonts?.ready.then(measure);
 
 /* ---------- input state ---------- */
