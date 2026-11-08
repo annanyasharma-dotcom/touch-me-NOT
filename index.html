@@ -150,6 +150,9 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.35;display:block}
 .card .who{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);min-width:0}
 .card .who b{color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card.mine{background:#fff8e6;border-color:var(--sticker-line)}
+.card .who span{margin-left:auto}
+.del{font:inherit;font-size:12px;font-weight:600;color:var(--req);background:none;border:0;padding:2px 0 2px 6px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.del:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .wall-empty{grid-column:1/-1;margin:0;font-size:14px;color:var(--muted)}
 @media (max-width:560px){
   .notes{margin-top:24px;gap:22px}
@@ -205,6 +208,49 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.35;display:block}
   #preview{width:44px;height:44px}
 }
 @media (max-width:340px){ .half{grid-template-columns:1fr} }
+
+/* one screen that never scrolls: the page fills the space above the bar; sizes follow the screen height */
+html{height:100%;overflow:hidden;overscroll-behavior:none}
+body{height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow:hidden;
+  display:flex;flex-direction:column;overscroll-behavior:none}
+.page{flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column;overflow:hidden;padding-block:16px 10px}
+#form{flex:1 1 auto;min-height:0;justify-content:space-between;margin-top:clamp(12px,3vh,40px);gap:clamp(8px,2vh,24px);touch-action:none}
+.dock{position:static;flex:none;padding-block:10px calc(env(safe-area-inset-bottom,0px) + 10px);border-top:1.5px solid var(--line)}
+#form .f{gap:clamp(4px,.9vh,10px)}
+h1{font-size:clamp(34px,min(7vw,7.5vh),68px)}
+#form{gap:clamp(8px,1.6vh,24px);margin-top:clamp(10px,2.4vh,40px)}
+.top{row-gap:clamp(8px,1.6vh,16px)}
+#form label,#form .legend{font-size:clamp(14px,2vh,17px)}
+#form .input{padding:clamp(9px,1.6vh,16px) 20px}
+#form .chip{padding:clamp(7px,1.2vh,10px) 14px}
+#form .check{padding:clamp(9px,1.5vh,13px) 16px}
+#form .submit,#form .reset{padding-block:clamp(10px,1.7vh,15px)}
+/* finished screen: the note form and the wall scroll together inside their own area */
+.notes{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin-top:clamp(12px,2.5vh,36px);padding-bottom:8px}
+@media (max-width:560px){
+  .page{min-height:0;padding-block:clamp(8px,1.4vh,12px) 8px}
+  .top{gap:clamp(6px,1.4vh,14px)}
+  .back{padding:clamp(6px,1.1vh,10px) 14px}
+  h1{font-size:clamp(26px,min(11vw,6.2vh),56px)}
+  .intro{font-size:clamp(12px,1.75vh,14px);gap:clamp(4px,.8vh,8px)}
+  #form{gap:clamp(6px,1.3vh,14px)}
+  #form .f{gap:clamp(3px,.6vh,8px)}
+  #form label,#form .legend{font-size:clamp(13px,1.8vh,15px)}
+  #form .input{padding:clamp(6px,1.3vh,15px) 14px}
+  .half{gap:clamp(6px,1.3vh,14px)}
+  .chips{grid-template-columns:repeat(4,1fr);gap:6px}
+  #form .chip{font-size:clamp(11px,1.6vh,13px);padding:clamp(6px,1.2vh,12px) 4px}
+  #form .check{padding:clamp(6px,1.3vh,14px) 12px;font-size:clamp(13px,1.8vh,15px)}
+  .row-end{grid-template-columns:2fr 1fr;gap:8px}
+  #form .submit{padding:clamp(7px,1.5vh,16px) 18px;font-size:clamp(15px,2.1vh,18px)}
+  #form .reset{padding:clamp(7px,1.5vh,16px) 12px}
+  .dock{gap:6px;padding-block:8px calc(env(safe-area-inset-bottom,0px) + 8px)}
+  #hand{display:none}
+  .coach{font-size:12px;padding:6px 10px 6px 8px}
+  .coach svg{width:28px;height:18px}
+}
+/* very short phones: keep the first intro line only */
+@media (max-width:560px) and (max-height:700px){ .intro p+p{display:none} }
 </style>
 </head>
 <body>
@@ -290,7 +336,7 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.35;display:block}
   <div class="coach-row">
     <div class="coach" id="coach">
       <svg viewBox="0 0 34 22" aria-hidden="true"><circle class="t" cx="8" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/><circle class="i" cx="26" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/></svg>
-      <span id="coachText">Turn on the camera, then pinch thumb + index to catch</span>
+      <span id="coachText">Turn on the camera, then pinch to catch</span>
     </div>
   </div>
   <span class="stat" id="hand">No hand</span>
@@ -416,7 +462,7 @@ document.getElementById('reset').addEventListener('click',()=>{
 
 /* ---------- frame loop ---------- */
 const edgeL=document.getElementById('edgeL'),edgeR=document.getElementById('edgeR'),handEl=document.getElementById('hand');
-let panic=0,proximity=0; // proximity: how close a hand is to the nearest element (0..1)
+let panic=0;
 measure();
 function tick(){
   const raw=handCursor?[handCursor]:pointerPts;
@@ -451,7 +497,6 @@ function tick(){
     b.hx=r.left+r.width/2+scrollX-b.x; b.hy=r.top+r.height/2+scrollY-b.y;
     b.w=b.el.offsetWidth; b.h=b.el.offsetHeight;
   }
-  let frameNear=0;
   for(const b of baits){
     if(b.held)continue; // caught: it stays where you caught it
     const cx=b.hx+b.x, cy=b.hy+b.y;
@@ -487,13 +532,10 @@ function tick(){
     }
     if(minX>maxX)b.x=(minX+maxX)/2; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
     if(b.y<minY){b.y=minY;b.vy*=-.4}else if(b.y>maxY){b.y=maxY;b.vy*=-.4}
-    if(near>frameNear)frameNear=near;
     b.fold=near>b.fold?b.fold+(near-b.fold)*.35:b.fold*.96;
     const rot=reduce?0:Math.max(-10,Math.min(10,b.vx*.8));
     b.el.style.transform=`translate(${b.x.toFixed(1)}px,${b.y.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scaleY(${(1-b.fold*.15).toFixed(3)})`;
   }
-
-  proximity+=(frameNear-proximity)*(frameNear>proximity?.2:.05);
 
   // edge glow + status
   const side=threat?(threat.cx<innerWidth/2?'left':'right'):null;
@@ -505,14 +547,11 @@ function tick(){
 requestAnimationFrame(tick);
 
 /* ---------- background music (generated live, no audio files) ----------
-   A sneaky, swung tiptoe tune in E minor: plucked pizzicato motifs with a cheeky flat fifth,
-   a staccato bass that creeps chromatically into each bar, and a soft off-beat tick.
-   The bass grows louder, brighter and busier the closer a hand gets to the elements. */
+   A sneaky, swung tiptoe tune in E minor: plucked staccato motifs with a cheeky flat fifth
+   over a soft off-beat tick. It speeds up a little when a hand is near the phone. */
 const Music=(()=>{
-  let ctx,master,mel,bassF,bassBus,subBus,hatBuf,next=0,step=0,timer=0,on=false;
+  let ctx,master,mel,hatBuf,next=0,step=0,timer=0,on=false;
   const hz=m=>440*2**((m-69)/12);
-  const roots=[40,40,36,35];               // E  E  C  B, one per bar
-  const bassPat={0:0,3:0,6:7,8:0,11:12};   // offsets from the root, in 16ths
   const motifs=[                          // two-bar phrases (32 sixteenths)
     {0:76,2:79,4:81,5:82,6:83,10:79,12:76,16:74,18:76,22:71,28:76},
     {0:83,3:82,4:81,6:79,8:76,12:78,14:79,16:76,20:71,24:74,26:75,28:76},
@@ -528,9 +567,6 @@ const Music=(()=>{
     const fb=ctx.createGain();fb.gain.value=.25;const wet=ctx.createGain();wet.gain.value=.2;
     mel.connect(delay);delay.connect(fb);fb.connect(delay);delay.connect(wet);wet.connect(master);
     // bass: level, sub-octave and brightness follow how close a hand is
-    bassF=ctx.createBiquadFilter();bassF.type='lowpass';bassF.frequency.value=220;bassF.Q.value=4;
-    bassBus=ctx.createGain();bassBus.gain.value=.16;bassF.connect(bassBus);bassBus.connect(master);
-    subBus=ctx.createGain();subBus.gain.value=0;subBus.connect(master);
     // a tiny burst of noise for the off-beat tick
     hatBuf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*.04),ctx.sampleRate);
     const d=hatBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);
@@ -540,32 +576,18 @@ const Music=(()=>{
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+.18);
     o.connect(g);g.connect(mel);o.start(t);o.stop(t+.2);
   }
-  function bass(t,m,len,vel){
-    const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.value=hz(m);
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+len);
-    o.connect(g);g.connect(bassF);o.start(t);o.stop(t+len+.02);
-    const s=ctx.createOscillator(),sg=ctx.createGain();s.type='sine';s.frequency.value=hz(m-12);
-    sg.gain.setValueAtTime(0,t);sg.gain.linearRampToValueAtTime(vel,t+.01);sg.gain.exponentialRampToValueAtTime(.0001,t+len*1.4);
-    s.connect(sg);sg.connect(subBus);s.start(t);s.stop(t+len*1.4+.02);
-  }
   function hat(t,vel){
     const n=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();
     n.buffer=hatBuf;f.type='highpass';f.frequency.value=7000;g.gain.value=vel;
     n.connect(f);f.connect(g);g.connect(master);n.start(t);
   }
   function tickMusic(){
-    const p=won?0:panic, near=won?0:proximity, now=ctx.currentTime;
+    const p=won?0:panic, now=ctx.currentTime;
     const six=60/(108+18*p)/4; // a sixteenth; a little faster when a hand is near the phone
-    bassBus.gain.setTargetAtTime(.16+.42*near,now,.15);
-    subBus.gain.setTargetAtTime(.5*near,now,.15);
-    bassF.frequency.setTargetAtTime(220+1100*near,now,.15);
     while(next<now+.12){
-      const s=step%16, bar=Math.floor(step/16)%4, root=roots[bar];
+      const s=step%16, bar=Math.floor(step/16)%4;
       const t=next+(s%4===2?six*.33:0); // swing the off-beat eighths
       if(s===0&&bar%2===0)motif=motifs[Math.floor(Math.random()*motifs.length)];
-      if(bassPat[s]!==undefined)bass(t,root+bassPat[s],.2,.5);
-      else if(s===14)bass(t,roots[(bar+1)%4]-1,.12,.4);     // creep a semitone under the next root
-      else if(near>.55&&s%2===0)bass(t,root,.08,.3*near); // right up close: the bass gets restless
       const m=motif[(bar%2)*16+s];
       if(m&&!(bar===3&&s>8))pizz(t,m,.07+.03*p);
       if(s%4===2)hat(t,.025+.03*p);
@@ -666,7 +688,8 @@ const NotesStore=(()=>{
   async function share(note){
     try{
       if(mode==='claude'){
-        await db.doc('notes/'+uid).set({items:[note,...myItems].slice(0,50)});
+        const pub={...note};delete pub.secret; // the delete key stays on this device
+        await db.doc('notes/'+uid).set({items:[pub,...myItems].slice(0,50)});
         return true;
       }
       if(mode==='api'||load){
@@ -680,7 +703,18 @@ const NotesStore=(()=>{
     }catch{}
     return false;
   }
-  return{init,share};
+  async function remove(id,secret){
+    try{
+      if(mode==='claude'){
+        myItems=myItems.filter(n=>n.id!==id);
+        await db.doc('notes/'+uid).set({items:myItems});
+      }else if(mode==='api'||load){
+        await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id,secret})});
+        await load?.();
+      }
+    }catch{}
+  }
+  return{init,share,remove};
 })();
 
 const notesSec=document.getElementById('notes'),gameForm=document.getElementById('form');
@@ -704,9 +738,24 @@ function renderNotes(){
     const who=document.createElement('div');who.className='who';
     const b=document.createElement('b');b.textContent=n.name||'Someone';
     const d=document.createElement('span');d.textContent=n.at?new Date(n.at).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'';
-    who.append(b,d);c.append(who);wall.append(c);
+    who.append(b,d);
+    if(myIds.has(n.id)){
+      const del=document.createElement('button');del.type='button';del.className='del';del.textContent='Delete';
+      del.setAttribute('aria-label','Delete your note');
+      del.addEventListener('click',()=>deleteNote(n.id));
+      who.append(del);
+    }
+    c.append(who);wall.append(c);
   }
   nCount.textContent=`${notes.length} note${notes.length===1?'':'s'}`;
+}
+// your own notes can be removed straight away, no confirmation step
+async function deleteNote(id){
+  const mine=localNotes.find(n=>n.id===id);
+  localNotes=localNotes.filter(n=>n.id!==id);writeLocal(localNotes);
+  sharedNotes=sharedNotes.filter(n=>n.id!==id);myIds.delete(id);
+  renderNotes();nMsg.textContent='Note deleted.';
+  await NotesStore.remove(id,mine?.secret);
 }
 function startNotes(){
   renderNotes();
@@ -719,7 +768,8 @@ noteForm.addEventListener('submit',async e=>{
   if(!text){nMsg.textContent='Write a note first.';nText.focus();return}
   nPost.disabled=true;
   const note={id:(crypto.randomUUID?.()??Date.now().toString(36)+Math.random().toString(36).slice(2)),
-    name:nName.value.trim().slice(0,40)||'Someone',text:text.slice(0,280),rating:lastResult.rating,time:lastResult.secs,at:Date.now()};
+    name:nName.value.trim().slice(0,40)||'Someone',text:text.slice(0,280),rating:lastResult.rating,time:lastResult.secs,at:Date.now(),
+    secret:(crypto.randomUUID?.()??Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2))}; // lets only this device delete it
   // stick it on the wall straight away
   localNotes=[note,...localNotes];myIds.add(note.id);writeLocal(localNotes);
   nText.value='';nMsg.textContent='Stuck to the wall.';renderNotes();
@@ -741,7 +791,7 @@ function toScreen(x,y){
 let stream=null,hands=null,running=false,rafId=0;
 function setIdle(){
   camBtn.disabled=false;camBtn.textContent='Use camera';camBtn.setAttribute('aria-pressed','false');
-  document.getElementById('coachText').textContent='Turn on the camera, then pinch thumb + index to catch';
+  document.getElementById('coachText').textContent='Turn on the camera, then pinch to catch';
 }
 function stopCamera(){
   running=false;cancelAnimationFrame(rafId);
