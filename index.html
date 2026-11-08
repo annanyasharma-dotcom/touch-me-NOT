@@ -3,88 +3,108 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,900&family=Figtree:wght@400;500;600&display=swap">
 <style>
-/* Layout: the user's screen kept as-is (back button + stacked title, intro, gray form fields), extended downward
-   with more form fields and a mimosa sprig. Single light look, by design. Everything with .bait flees. */
+/* Layout: the user's screen (back button, stacked title, intro, gray form). Phone-first: everything stacks into
+   one column and fits one screen. Single light look, by design. Elements with .bait flee; the title stays put. */
 :root{
   color-scheme:light;
   --bg:#ffffff; --ink:#0b0b0b; --muted:#8e939c; --field:#eef1f5; --line:#d9dee5;
-  --sticker:#fde8bb; --sticker-line:#f4d48a; --req:#d0021b;
-  --leaf:#3f7d3a; --leaf-dark:#2b5a28; --stem:#6b5a3a; --bloom:#e874ad;
+  --sticker:#fde8bb; --sticker-line:#f4d48a; --req:#d0021b; --alert:#ff5a1f;
   --display:"Archivo","Arial Black",Impact,sans-serif;
   --body:"Figtree",system-ui,-apple-system,sans-serif;
 }
-html{overflow-x:hidden}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);overflow-x:hidden;
+html,body{overflow-x:clip;max-width:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  -webkit-user-select:none;user-select:none}
-.page{max-width:680px;margin:0 auto;padding-block:16px 120px}
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+*,*::before,*::after{box-sizing:border-box}
+.page{max-width:680px;margin:0 auto;padding-block:16px 96px}
 
-/* header, matching the screenshot */
-.top{display:grid;grid-template-columns:auto 1fr;gap:16px 28px;align-items:start}
+/* header */
+.top{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px 28px;align-items:start}
 .box{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:0;cursor:pointer}
-.back{font-size:18px;font-weight:500;padding:14px 22px;letter-spacing:.01em}
-h1{margin:0;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:clamp(34px,10.5vw,68px);
-  line-height:.86;letter-spacing:-.01em;text-transform:uppercase}
+.back{font-size:18px;font-weight:500;padding:14px 22px;letter-spacing:.01em;justify-self:start}
+h1{margin:0;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:clamp(34px,7vw,68px);
+  line-height:.86;letter-spacing:-.01em;text-transform:uppercase;min-width:0}
 h1 .row{display:flex;align-items:center;gap:.08em}
 .sticker{display:inline-block;background:var(--sticker);border:1.5px solid var(--sticker-line);
-  padding:.14em .2em .1em;transform:rotate(-3deg) translateY(.12em);margin-right:-.15em}
-.word{display:inline-block}
-.intro{grid-column:2;font-size:16px;line-height:1.25;margin:0;max-width:44ch;display:grid;gap:14px}
+  padding:.14em .2em .1em;transform:rotate(-3deg) translateY(.12em)}
+.intro{grid-column:2;font-size:16px;line-height:1.3;margin:0;max-width:44ch;display:grid;gap:12px;min-width:0}
 .intro p{margin:0}
 
 /* form */
-form{margin-top:44px;display:flex;flex-direction:column;gap:26px;touch-action:none}
-.f{display:flex;flex-direction:column;gap:10px}
+form{margin-top:40px;display:flex;flex-direction:column;gap:24px;touch-action:none}
+.f{display:flex;flex-direction:column;gap:8px;min-width:0}
 label,.legend{font-size:17px;font-weight:500}
 .req{color:var(--req)}
-.input{font:inherit;font-size:16px;padding:16px 22px;width:100%;box-sizing:border-box;-webkit-user-select:text;user-select:text}
+.input{font:inherit;font-size:16px;padding:15px 20px;width:100%;-webkit-user-select:text;user-select:text}
 .input::placeholder{color:#b0b5bd}
 .input:focus{outline:2px solid var(--ink);outline-offset:-2px}
-.half{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.chips{display:flex;flex-wrap:wrap;gap:10px}
-.chip{font-size:15px;padding:11px 16px}
+.half{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:15px;padding:10px 14px}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.check{display:flex;align-items:center;gap:12px;font-size:16px;padding:14px 18px;align-self:flex-start;text-align:left}
+.check{display:flex;align-items:center;gap:12px;font-size:16px;padding:13px 16px;align-self:flex-start;text-align:left;max-width:100%}
 .check .tick{width:20px;height:20px;border:1.5px solid var(--ink);background:var(--bg);display:grid;place-items:center;flex:none}
 .check[aria-pressed="true"] .tick::after{content:"";width:10px;height:10px;background:var(--ink)}
-.row-end{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.row-end{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .submit{font-family:var(--display);font-stretch:125%;font-weight:900;font-size:20px;text-transform:uppercase;
-  background:var(--ink);color:var(--bg);border-color:var(--ink);padding:16px 30px}
-.reset{font-size:16px;padding:16px 22px}
+  background:var(--ink);color:var(--bg);border-color:var(--ink);padding:15px 28px}
+.reset{font-size:16px;padding:15px 20px}
 .bait{will-change:transform;position:relative}
 .bait:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 .bait.caught{animation:caught .45s ease}
 @keyframes caught{40%{background:var(--sticker)}}
 
-.top{touch-action:none}
+/* side warning glow: shows which edge the hand is coming from */
+.edge{position:fixed;top:0;bottom:0;width:38vw;pointer-events:none;z-index:25;opacity:0}
+.edge.l{left:0;background:linear-gradient(90deg,color-mix(in srgb,var(--alert) 45%,transparent),transparent)}
+.edge.r{right:0;background:linear-gradient(270deg,color-mix(in srgb,var(--alert) 45%,transparent),transparent)}
 
 /* fingertips */
 .tip{position:fixed;left:0;top:0;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;pointer-events:none;z-index:30;
-  border:1.5px solid var(--ink);background:rgba(253,232,187,.55);opacity:0;transition:opacity .15s}
+  border:1.5px solid var(--ink);background:color-mix(in srgb,var(--sticker) 60%,transparent);opacity:0;transition:opacity .15s}
 .tip.on{opacity:1}
-.tip.idx{width:30px;height:30px;margin:-15px 0 0 -15px;background:rgba(253,232,187,.85)}
+.tip.idx{width:30px;height:30px;margin:-15px 0 0 -15px;background:color-mix(in srgb,var(--sticker) 90%,transparent)}
 
 /* camera dock */
-.dock{position:fixed;right:max(16px,calc(env(safe-area-inset-right,0px) + 12px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
-  z-index:40;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 32px)}
+.dock{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));
+  bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:40;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;pointer-events:none}
+.dock>*{pointer-events:auto}
 .cam{font:inherit;font-size:15px;font-weight:600;padding:12px 16px;background:var(--ink);color:var(--bg);border:0;cursor:pointer}
 .cam:disabled{opacity:.6}
 .cam:focus-visible{outline:2px solid var(--sticker-line);outline-offset:2px}
-#preview{width:64px;height:48px;object-fit:cover;transform:scaleX(-1);border:1.5px solid var(--ink);background:var(--field)}
-.stat{font-size:13px;background:var(--bg);border:1.5px solid var(--line);padding:8px 10px;font-variant-numeric:tabular-nums}
+#preview{width:56px;height:56px;object-fit:cover;transform:scaleX(-1);border:1.5px solid var(--ink);background:var(--field)}
+.stat{font-size:13px;background:var(--bg);border:1.5px solid var(--line);padding:8px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat.hot{border-color:var(--alert);color:var(--alert)}
 .note{flex-basis:100%;text-align:right;font-size:13px;background:var(--bg);color:var(--req);margin:0;padding:6px 8px;border:1.5px solid var(--line)}
 .note:empty{display:none}
 
-@media (max-width:420px){
-  .half{grid-template-columns:1fr}
-  .back{font-size:16px;padding:12px 16px}
+/* phones: one column, compact, fits one screen */
+@media (max-width:560px){
+  .page{padding-block:12px 84px}
+  .top{grid-template-columns:minmax(0,1fr);gap:14px}
+  .back{font-size:15px;padding:10px 16px}
+  h1{font-size:clamp(30px,13.5vw,60px)}
+  .intro{grid-column:1;font-size:14px;gap:8px}
+  form{margin-top:22px;gap:16px}
+  label,.legend{font-size:15px}
+  .input{padding:12px 14px;font-size:16px}
+  .half{gap:10px}
+  .chip{font-size:14px;padding:9px 12px}
+  .check{font-size:14px;padding:11px 14px}
+  .submit{font-size:17px;padding:13px 22px}
+  .reset{font-size:15px;padding:13px 16px}
+  .stat{font-size:12px;padding:7px 8px}
+  .cam{font-size:14px;padding:10px 14px}
+  #preview{width:44px;height:44px}
 }
+@media (max-width:340px){ .half{grid-template-columns:1fr} }
 </style>
 
 <div class="page">
   <div class="top">
     <button class="box back bait" type="button" id="back">(GO) BACK</button>
-    <h1 aria-label="Touch me not"><span class="row"><span class="word bait">Touch</span></span><span class="row"><span class="word bait">Me</span> <span class="word bait"><span class="sticker">Not</span></span></span></h1>
+    <h1 aria-label="Touch me not"><span class="row">Touch</span><span class="row">Me <span class="sticker">Not</span></span></h1>
     <div class="intro">
       <p>This interface was created in the honour of the touch-me-not plant. the ui elements move whenever you try to come close to it.</p>
       <p>The interface uses MediaPipe Hand Landmarker and coordinate mapping to do the same.</p>
@@ -125,10 +145,13 @@ label,.legend{font-size:17px;font-weight:500}
       <button type="button" class="box reset bait" id="reset">Clear</button>
     </div>
   </form>
-
 </div>
 
+<div class="edge l" id="edgeL"></div>
+<div class="edge r" id="edgeR"></div>
+
 <div class="dock">
+  <span class="stat" id="hand">No hand</span>
   <span class="stat">Caught <b id="score">0</b></span>
   <video id="preview" playsinline muted hidden></video>
   <button class="cam" id="camBtn" type="button">Use camera</button>
@@ -137,28 +160,29 @@ label,.legend{font-size:17px;font-weight:500}
 
 <script type="module">
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const RADIUS=140, PUSH=2.3, SPRING=0.05, DAMP=0.8;
+const RADIUS=140, PUSH=2.3, SPRING=0.05, DAMP=0.8, GUTTER=8;
 
 /* ---------- fleeing elements ---------- */
 const baits=[...document.querySelectorAll('.bait')].map(el=>({el,hx:0,hy:0,w:0,h:0,x:0,y:0,vx:0,vy:0,fold:0}));
-let pageW=0,pageH=0;
+let pageH=0;
 function measure(){
-  pageW=document.documentElement.clientWidth;
   pageH=Math.max(document.documentElement.scrollHeight,innerHeight);
   for(const b of baits){
     const r=b.el.getBoundingClientRect();
-    // undo our own transform: rect center minus current offset, in page coords
     b.w=b.el.offsetWidth;b.h=b.el.offsetHeight;
     b.hx=r.left+r.width/2+scrollX-b.x; b.hy=r.top+r.height/2+scrollY-b.y;
   }
 }
 addEventListener('resize',()=>requestAnimationFrame(measure));
+addEventListener('orientationchange',()=>setTimeout(measure,300));
 document.fonts?.ready.then(measure);
 
-/* ---------- inputs ---------- */
+/* ---------- input state ---------- */
 const tips=[];
 function tipEl(i){if(!tips[i]){const d=document.createElement('div');d.className='tip';document.body.appendChild(d);tips[i]=d}return tips[i]}
-let pointerPts=[],handPts=[],camOn=false;
+let pointerPts=[],handPts=[];
+// whole-hand threat: where the hand is (screen px, may be off-screen) and how close it is to the phone (0..1)
+let threat=null;
 const active=new Map();
 const setPt=e=>{active.set(e.pointerId,{cx:e.clientX,cy:e.clientY,idx:true});pointerPts=[...active.values()]};
 addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&!active.has(e.pointerId))return;setPt(e)});
@@ -176,13 +200,15 @@ document.querySelectorAll('button.bait').forEach(el=>el.addEventListener('click'
   else if(el.hasAttribute('aria-pressed'))el.setAttribute('aria-pressed',el.getAttribute('aria-pressed')!=='true');
 }));
 document.querySelectorAll('input.bait').forEach(el=>el.addEventListener('focus',()=>caught(el)));
-document.getElementById('form').addEventListener('submit',e=>{e.preventDefault()});
+document.getElementById('form').addEventListener('submit',e=>e.preventDefault());
 document.getElementById('reset').addEventListener('click',()=>{
-  document.getElementById('form').querySelectorAll('input').forEach(i=>i.value='');
+  document.querySelectorAll('#form input').forEach(i=>i.value='');
   document.querySelectorAll('[aria-pressed]').forEach(c=>c.setAttribute('aria-pressed','false'));
 });
 
 /* ---------- frame loop ---------- */
+const edgeL=document.getElementById('edgeL'),edgeR=document.getElementById('edgeR'),handEl=document.getElementById('hand');
+let panic=0;
 measure();
 function tick(){
   const raw=handPts.length?handPts:pointerPts;
@@ -190,9 +216,16 @@ function tick(){
   raw.forEach((p,i)=>{const t=tipEl(i);t.classList.add('on');t.classList.toggle('idx',!!p.idx);t.style.transform=`translate(${p.cx}px,${p.cy}px)`});
   for(let i=raw.length;i<tips.length;i++)tips[i].classList.remove('on');
 
+  // panic rises fast when a hand appears, settles slowly when it leaves
+  const want=threat?0.35+0.65*threat.close:0;
+  panic+=(want-panic)*(want>panic?.25:.04);
+  const tx=threat?threat.cx+scrollX:0, ty=threat?threat.cy+scrollY:0;
+
+  const vw=document.documentElement.clientWidth;
   for(const b of baits){
     const cx=b.hx+b.x, cy=b.hy+b.y;
     let fx=0,fy=0,near=0;
+    // 1. fingertips close by push the element away
     for(const p of pts){
       const dx=cx-p.x, dy=cy-p.y;
       const d=Math.hypot(Math.max(Math.abs(dx)-b.w/2,0),Math.max(Math.abs(dy)-b.h/2,0));
@@ -201,18 +234,32 @@ function tick(){
         fx+=dx/len*s; fy+=dy/len*s; near=Math.max(near,k);
       }
     }
+    // 2. a hand anywhere near the phone makes everything run to the opposite side
+    if(threat&&panic>.02){
+      let dx=cx-tx, dy=cy-ty; const len=Math.hypot(dx,dy)||1;
+      // mostly sideways: the hand usually arrives from an edge
+      dx/=len; dy=dy/len*.45;
+      const s=panic*26;
+      fx+=dx*s; fy+=dy*s; near=Math.max(near,panic*.8);
+      if(!reduce){ fx+=(Math.random()-.5)*panic*6; fy+=(Math.random()-.5)*panic*4 } // trembling
+    }
     b.vx=(b.vx+fx-b.x*SPRING)*DAMP; b.vy=(b.vy+fy-b.y*SPRING)*DAMP;
     b.x+=b.vx; b.y+=b.vy;
-    // stay on the page
-    const minX=16+b.w/2-b.hx, maxX=pageW-16-b.w/2-b.hx, minY=8+b.h/2-b.hy, maxY=pageH-8-b.h/2-b.hy;
-    if(minX>maxX)b.x=0; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
+    // keep inside the visible width and the page height
+    const minX=scrollX+GUTTER+b.w/2-b.hx, maxX=scrollX+vw-GUTTER-b.w/2-b.hx;
+    const minY=GUTTER+b.h/2-b.hy, maxY=pageH-GUTTER-b.h/2-b.hy;
+    if(minX>maxX)b.x=(minX+maxX)/2; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
     if(b.y<minY){b.y=minY;b.vy*=-.4}else if(b.y>maxY){b.y=maxY;b.vy*=-.4}
-    // fold shut quickly, reopen slowly, like the plant
     b.fold=near>b.fold?b.fold+(near-b.fold)*.35:b.fold*.96;
     const rot=reduce?0:Math.max(-10,Math.min(10,b.vx*.8));
-    b.el.style.transform=`translate(${b.x.toFixed(1)}px,${b.y.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scaleY(${(1-b.fold*.18).toFixed(3)})`;
+    b.el.style.transform=`translate(${b.x.toFixed(1)}px,${b.y.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scaleY(${(1-b.fold*.15).toFixed(3)})`;
   }
 
+  // edge glow + status
+  const side=threat?(threat.cx<innerWidth/2?'left':'right'):null;
+  edgeL.style.opacity=side==='left'?panic:0; edgeR.style.opacity=side==='right'?panic:0;
+  const label=side?`Hand on the ${side}${threat.close>.6?', very close':''}`:'No hand';
+  if(handEl.textContent!==label){handEl.textContent=label;handEl.classList.toggle('hot',!!side)}
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
@@ -220,32 +267,51 @@ requestAnimationFrame(tick);
 /* ---------- camera hand tracking ---------- */
 const camBtn=document.getElementById('camBtn'),video=document.getElementById('preview'),note=document.getElementById('note');
 const TIPS=[4,8,12,16,20];
+// map camera coords (0..1) to screen px as the camera image would "cover" the screen; points can fall off-screen
+function toScreen(x,y){
+  const W=innerWidth,H=innerHeight, va=(video.videoWidth||4)/(video.videoHeight||3), sa=W/H;
+  let sx=1-x, sy=y; // mirror: front camera
+  if(va>sa) sx=(sx-.5)*va/sa+.5; else sy=(sy-.5)*sa/va+.5;
+  return {cx:sx*W, cy:sy*H};
+}
 camBtn.addEventListener('click',async()=>{
   note.textContent='';camBtn.disabled=true;camBtn.textContent='Starting…';
   let stream;
-  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480},audio:false})}
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false})}
   catch{
     camBtn.disabled=false;camBtn.textContent='Use camera';
-    note.textContent='Camera is blocked on this page. Open the file from an https:// link to hover with your hand. Touch and mouse work here.';
+    note.textContent='Camera is blocked on this page. Open the site from an https:// link to hover with your hand. Touch and mouse work here.';
     return;
   }
   video.srcObject=stream;video.hidden=false;await video.play();
-  camBtn.textContent='Loading hand model…';
+  camBtn.textContent='Loading…';
   try{
     const v='0.10.14';
     const {FilesetResolver,HandLandmarker}=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/vision_bundle.mjs`);
     const files=await FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/wasm`);
     const hands=await HandLandmarker.createFromOptions(files,{
       baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},
-      runningMode:'VIDEO',numHands:2});
-    camOn=true;camBtn.textContent='Camera on';
-    let last=-1;
+      runningMode:'VIDEO',numHands:2,
+      // low thresholds so a hand is caught early, while only part of it is in view at the edge
+      minHandDetectionConfidence:.3,minHandPresenceConfidence:.3,minTrackingConfidence:.3});
+    camBtn.textContent='Camera on';
+    let last=-1,lost=0;
     const loop=()=>{
       if(video.currentTime!==last){
         last=video.currentTime;
         const res=hands.detectForVideo(video,performance.now()), out=[];
-        for(const lm of res.landmarks||[])for(const i of TIPS)out.push({cx:(1-lm[i].x)*innerWidth,cy:lm[i].y*innerHeight,idx:i===8});
+        let best=null;
+        for(const lm of res.landmarks||[]){
+          for(const i of TIPS){const p=toScreen(lm[i].x,lm[i].y);out.push({...p,idx:i===8})}
+          // hand size in the frame (wrist to middle knuckle) says how close it is to the phone
+          const size=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y);
+          const close=Math.max(0,Math.min(1,(size-.06)/.22));
+          let mx=0,my=0;for(const p of lm){mx+=p.x;my+=p.y}
+          const c=toScreen(mx/lm.length,my/lm.length);
+          if(!best||close>best.close)best={...c,close};
+        }
         handPts=out;
+        if(best){threat=best;lost=0}else if(++lost>6)threat=null; // brief dropouts don't reset the run
       }
       requestAnimationFrame(loop);
     };
