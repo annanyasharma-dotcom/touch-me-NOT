@@ -210,6 +210,53 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.35;display:block}
   #preview{width:44px;height:44px}
 }
 @media (max-width:340px){ .half{grid-template-columns:1fr} }
+
+/* shorter screens: same layout and order, only tighter spacing so every element fits without scrolling */
+@media (max-width:560px) and (max-height:920px){
+  .page{padding-block:8px 6px}
+  .top{gap:8px}
+  .back{padding-block:7px}
+  .intro{gap:4px}
+  form{margin-top:10px;gap:7px}
+  .f{gap:3px}
+  .input{padding-block:8px}
+  .half{gap:7px}
+  .chips{gap:5px}
+  .chip{padding-block:7px}
+  .check{padding-block:7px}
+  .row-end{gap:5px}
+  .submit,.reset{padding-block:9px}
+  .dock{padding-block:5px calc(env(safe-area-inset-bottom,0px) + 5px);gap:5px}
+  .coach{padding-block:4px}
+}
+@media (min-width:561px) and (max-height:880px){
+  .page{padding-block:10px 96px}
+  .top{row-gap:8px}
+  .back{padding-block:10px}
+  form{margin-top:14px;gap:12px}
+  .f{gap:5px}
+  .input{padding-block:10px}
+  .chip{padding-block:7px}
+  .check{padding-block:8px}
+  .submit,.reset{padding-block:10px}
+}
+@media (max-width:560px) and (max-height:860px){
+  .page{padding-block:6px 4px}
+  .top{gap:6px}
+  .back{padding-block:5px}
+  .intro{gap:2px;line-height:1.22}
+  form{margin-top:8px;gap:5px}
+  .f{gap:2px}
+  .input{padding-block:6px}
+  .half{gap:5px}
+  .chip{padding-block:5px}
+  .check{padding-block:5px}
+  .submit,.reset{padding-block:7px}
+  .dock{padding-block:4px calc(env(safe-area-inset-bottom,0px) + 4px);gap:4px}
+  .coach{padding-block:3px}
+  .stat{padding-block:5px}
+  .cam,.mus{padding-block:8px}
+}
 </style>
 </head>
 <body>
