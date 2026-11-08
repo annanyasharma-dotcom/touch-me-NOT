@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Touch Me Not</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -127,12 +133,13 @@ label,.legend{font-size:17px;font-weight:500}
   form{flex:1;margin-top:22px;gap:14px;justify-content:space-between}
   label,.legend{font-size:15px}
   .input{padding:15px 14px;font-size:16px}
-  .half{gap:10px}
+  /* every field on its own full-width row */
+  .half{grid-template-columns:1fr;gap:14px}
   /* options become a full-width 2 x 2 grid */
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .chip{font-size:14px;padding:13px 10px}
   .check{font-size:15px;padding:14px;align-self:stretch}
-  .row-end{display:grid;grid-template-columns:1fr auto;gap:10px}
+  .row-end{display:grid;grid-template-columns:1fr;gap:10px}
   .submit{font-size:18px;padding:16px 22px}
   .reset{font-size:15px;padding:16px 18px}
   .stat{font-size:12px;padding:7px 8px}
@@ -141,7 +148,8 @@ label,.legend{font-size:17px;font-weight:500}
 }
 @media (max-width:340px){ .half{grid-template-columns:1fr} }
 </style>
-
+</head>
+<body>
 <div class="page">
   <div class="top">
     <button class="box back bait" type="button" id="back"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H4M9 4l-6 6 6 6"/></svg>(GO) BACK</button>
@@ -477,3 +485,5 @@ camBtn.addEventListener('click',()=>{stream?stopCamera():startCamera()});
 // release the camera if the tab is closed or hidden
 addEventListener('pagehide',()=>{if(stream)stopCamera()});
 </script>
+</body>
+</html>
