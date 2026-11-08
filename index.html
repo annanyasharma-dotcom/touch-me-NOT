@@ -153,6 +153,10 @@ label,.legend{font-size:17px;font-weight:500}
   /* on phones the bar sits under the form instead of floating over it */
   .dock{position:static;padding-block:12px calc(env(safe-area-inset-bottom,0px) + 12px);border-top:1.5px solid var(--line)}
   #musTxt{display:none}
+  #hand{display:none} /* the cursor label already says this on phones */
+  .dock{gap:6px}
+  .coach{padding:7px 10px 7px 8px}
+  .coach svg{width:28px;height:18px}
   .coach{font-size:13px}
   .top{grid-template-columns:minmax(0,1fr);gap:14px}
   .back{font-size:15px;padding:10px 16px}
@@ -169,7 +173,7 @@ label,.legend{font-size:17px;font-weight:500}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .chip{font-size:14px;padding:13px 10px}
   .check{font-size:15px;padding:14px;align-self:stretch}
-  .row-end{display:grid;grid-template-columns:1fr;gap:10px}
+  .row-end{display:grid;grid-template-columns:2fr 1fr;gap:10px}
   .submit{font-size:18px;padding:16px 22px}
   .reset{font-size:15px;padding:16px 18px}
   .stat{font-size:12px;padding:7px 8px}
@@ -177,6 +181,31 @@ label,.legend{font-size:17px;font-weight:500}
   #preview{width:44px;height:44px}
 }
 @media (max-width:340px){ .half{grid-template-columns:1fr} }
+/* shorter phones: tighten everything so the whole form, Clear included, fits on one screen */
+@media (max-width:560px) and (max-height:960px){
+  .page{padding-block:10px 12px}
+  .top{gap:10px}
+  .back{font-size:14px;padding:8px 12px}
+  h1{font-size:clamp(26px,9.5vw,46px)}
+  .intro{font-size:13px;gap:6px;line-height:1.25}
+  form{margin-top:14px;gap:10px}
+  .f{gap:5px}
+  label,.legend{font-size:14px}
+  .input{padding:11px 12px}
+  .chips{gap:6px}
+  .chip{padding:10px 8px;font-size:13px}
+  .check{padding:10px 12px;font-size:14px}
+  .submit{padding:12px 18px;font-size:16px}
+  .reset{padding:12px 14px}
+  .dock{padding-block:8px calc(env(safe-area-inset-bottom,0px) + 8px)}
+  .coach{font-size:12px}
+}
+@media (max-width:560px) and (max-height:700px){
+  .r-line{font-size:16px}
+  .chip{padding:8px}
+  .input{padding:9px 12px}
+  label,.legend{font-size:13px}
+}
 </style>
 </head>
 <body>
@@ -394,7 +423,10 @@ function tick(){
 
   const vw=document.documentElement.clientWidth;
   // layout height only (offsetHeight ignores transforms), so a fleeing element can't stretch its own bounds
-  pageH=Math.max(innerHeight,pageEl.offsetTop+pageEl.offsetHeight+(getComputedStyle(dockEl).position==='static'?dockEl.offsetHeight:0));
+  const dockStatic=getComputedStyle(dockEl).position==='static';
+  pageH=Math.max(innerHeight,pageEl.offsetTop+pageEl.offsetHeight+(dockStatic?dockEl.offsetHeight:0));
+  // the visible area: elements may not run out of it (nor hide under a floating bottom bar)
+  const viewTop=scrollY+GUTTER, viewBot=scrollY+innerHeight-GUTTER-(dockStatic?0:dockEl.offsetHeight);
   // re-read every element's resting spot each frame (reads first, writes after) so layout changes never leave it stale;
   // the box centre is unaffected by our rotate/scale, so centre minus our offset is the layout home
   for(const b of baits){
@@ -429,7 +461,8 @@ function tick(){
     b.x+=b.vx; b.y+=b.vy;
     // keep inside the visible width and the page height
     const minX=scrollX+GUTTER+b.w/2-b.hx, maxX=scrollX+vw-GUTTER-b.w/2-b.hx;
-    const minY=GUTTER+b.h/2-b.hy, maxY=pageH-GUTTER-b.h/2-b.hy;
+    // never pushed off the visible screen; one that already rests off-screen just stays home
+    const minY=Math.min(0,viewTop+b.h/2-b.hy), maxY=Math.max(0,viewBot-b.h/2-b.hy);
     if(minX>maxX)b.x=(minX+maxX)/2; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
     if(b.y<minY){b.y=minY;b.vy*=-.4}else if(b.y>maxY){b.y=maxY;b.vy*=-.4}
     b.fold=near>b.fold?b.fold+(near-b.fold)*.35:b.fold*.96;
