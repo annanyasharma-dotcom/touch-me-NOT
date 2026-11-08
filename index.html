@@ -386,60 +386,85 @@ function toScreen(x,y){
   if(va>sa) sx=(sx-.5)*va/sa+.5; else sy=(sy-.5)*sa/va+.5;
   return {cx:sx*W, cy:sy*H};
 }
-camBtn.addEventListener('click',async()=>{
+let stream=null,hands=null,running=false,rafId=0;
+function setIdle(){
+  camBtn.disabled=false;camBtn.textContent='Use camera';camBtn.setAttribute('aria-pressed','false');
+  document.getElementById('coachText').textContent='Turn on the camera, then pinch thumb + index to catch';
+}
+function stopCamera(){
+  running=false;cancelAnimationFrame(rafId);
+  stream?.getTracks().forEach(t=>t.stop());stream=null;
+  video.pause();video.srcObject=null;video.hidden=true;
+  // forget the hand so nothing keeps fleeing from a ghost
+  handCursor=null;threat=null;hands2d=[];
+  setIdle();
+}
+async function loadHands(){
+  if(hands)return hands; // reuse the model when the camera is turned on again
+  const v='0.10.14';
+  const {FilesetResolver,HandLandmarker}=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/vision_bundle.mjs`);
+  const files=await FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/wasm`);
+  hands=await HandLandmarker.createFromOptions(files,{
+    baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},
+    runningMode:'VIDEO',numHands:2,
+    // low thresholds so a hand is caught early, while only part of it is in view at the edge
+    minHandDetectionConfidence:.3,minHandPresenceConfidence:.3,minTrackingConfidence:.3});
+  return hands;
+}
+async function startCamera(){
   note.textContent='';camBtn.disabled=true;camBtn.textContent='Starting…';
-  let stream;
   try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false})}
   catch{
-    camBtn.disabled=false;camBtn.textContent='Use camera';
+    setIdle();
     note.textContent='Camera is blocked on this page. Open the site from an https:// link to hover with your hand. Touch and mouse work here.';
     return;
   }
   video.srcObject=stream;video.hidden=false;await video.play();
   camBtn.textContent='Loading…';
-  try{
-    const v='0.10.14';
-    const {FilesetResolver,HandLandmarker}=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/vision_bundle.mjs`);
-    const files=await FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/wasm`);
-    const hands=await HandLandmarker.createFromOptions(files,{
-      baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},
-      runningMode:'VIDEO',numHands:2,
-      // low thresholds so a hand is caught early, while only part of it is in view at the edge
-      minHandDetectionConfidence:.3,minHandPresenceConfidence:.3,minTrackingConfidence:.3});
-    camBtn.textContent='Camera on';document.getElementById('coachText').textContent='Pinch thumb + index to catch';
-    let last=-1,lost=0;
-    const loop=()=>{
-      if(video.currentTime!==last){
-        last=video.currentTime;
-        const res=hands.detectForVideo(video,performance.now());
-        let best=null,cur=null;
-        for(const lm of res.landmarks||[]){
-          // hand size in the frame (wrist to middle knuckle) says how close it is to the phone
-          const size=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y)||.01;
-          const close=Math.max(0,Math.min(1,(size-.06)/.22));
-          let mx=0,my=0;for(const p of lm){mx+=p.x;my+=p.y}
-          const c=toScreen(mx/lm.length,my/lm.length);
-          if(!best||close>best.close){best={...c,close};cur={lm,pinchD:Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/size}}
-        }
-        if(cur){
-          const was=handCursor?.pinch;
-          const pinch=was?cur.pinchD<.55:cur.pinchD<.35; // hysteresis so it doesn't flicker
-          const L=cur.lm;
-          const p=pinch?toScreen((L[4].x+L[8].x)/2,(L[4].y+L[8].y)/2):toScreen(L[8].x,L[8].y);
-          if(handCursor){p.cx=handCursor.cx+(p.cx-handCursor.cx)*.55;p.cy=handCursor.cy+(p.cy-handCursor.cy)*.55} // smooth jitter
-          const prog=Math.max(0,Math.min(1,(.9-cur.pinchD)/.55));
-          handCursor={...p,idx:true,pinch,prog:pinch?1:prog};
-          if(pinch&&!was&&pinchCatch(p.cx,p.cy))caughtAt=performance.now();
-        }
-        hands2d=(res.landmarks||[]).map(lm=>lm.map(q=>toScreen(q.x,q.y)));
-        if(best){threat=best;lost=0}else if(++lost>6){threat=null;handCursor=null;hands2d=[]} // brief dropouts don't reset
-      }
-      requestAnimationFrame(loop);
-    };
-    loop();
-  }catch{
-    camBtn.disabled=false;camBtn.textContent='Use camera';
+  let model;
+  try{model=await loadHands()}
+  catch{
+    stopCamera();
     note.textContent='The hand model could not load. Check your connection and try again.';
+    return;
   }
-});
+  if(!stream)return; // turned off while loading
+  running=true;
+  camBtn.disabled=false;camBtn.textContent='Turn camera off';camBtn.setAttribute('aria-pressed','true');
+  document.getElementById('coachText').textContent='Pinch thumb + index to catch';
+  let last=-1,lost=0;
+  const loop=()=>{
+    if(!running)return;
+    if(video.readyState>=2&&video.currentTime!==last){
+      last=video.currentTime;
+      const res=model.detectForVideo(video,performance.now());
+      let best=null,cur=null;
+      for(const lm of res.landmarks||[]){
+        // hand size in the frame (wrist to middle knuckle) says how close it is to the phone
+        const size=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y)||.01;
+        const close=Math.max(0,Math.min(1,(size-.06)/.22));
+        let mx=0,my=0;for(const p of lm){mx+=p.x;my+=p.y}
+        const c=toScreen(mx/lm.length,my/lm.length);
+        if(!best||close>best.close){best={...c,close};cur={lm,pinchD:Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/size}}
+      }
+      if(cur){
+        const was=handCursor?.pinch;
+        const pinch=was?cur.pinchD<.55:cur.pinchD<.35; // hysteresis so it doesn't flicker
+        const L=cur.lm;
+        const p=pinch?toScreen((L[4].x+L[8].x)/2,(L[4].y+L[8].y)/2):toScreen(L[8].x,L[8].y);
+        if(handCursor){p.cx=handCursor.cx+(p.cx-handCursor.cx)*.55;p.cy=handCursor.cy+(p.cy-handCursor.cy)*.55} // smooth jitter
+        const prog=Math.max(0,Math.min(1,(.9-cur.pinchD)/.55));
+        handCursor={...p,idx:true,pinch,prog:pinch?1:prog};
+        if(pinch&&!was&&pinchCatch(p.cx,p.cy))caughtAt=performance.now();
+      }
+      hands2d=(res.landmarks||[]).map(lm=>lm.map(q=>toScreen(q.x,q.y)));
+      if(best){threat=best;lost=0}else if(++lost>6){threat=null;handCursor=null;hands2d=[]} // brief dropouts don't reset
+    }
+    rafId=requestAnimationFrame(loop);
+  };
+  loop();
+}
+camBtn.addEventListener('click',()=>{stream?stopCamera():startCamera()});
+// release the camera if the tab is closed or hidden
+addEventListener('pagehide',()=>{if(stream)stopCamera()});
 </script>
