@@ -416,7 +416,7 @@ document.getElementById('reset').addEventListener('click',()=>{
 
 /* ---------- frame loop ---------- */
 const edgeL=document.getElementById('edgeL'),edgeR=document.getElementById('edgeR'),handEl=document.getElementById('hand');
-let panic=0;
+let panic=0,proximity=0; // proximity: how close a hand is to the nearest element (0..1)
 measure();
 function tick(){
   const raw=handCursor?[handCursor]:pointerPts;
@@ -451,6 +451,7 @@ function tick(){
     b.hx=r.left+r.width/2+scrollX-b.x; b.hy=r.top+r.height/2+scrollY-b.y;
     b.w=b.el.offsetWidth; b.h=b.el.offsetHeight;
   }
+  let frameNear=0;
   for(const b of baits){
     if(b.held)continue; // caught: it stays where you caught it
     const cx=b.hx+b.x, cy=b.hy+b.y;
@@ -486,10 +487,13 @@ function tick(){
     }
     if(minX>maxX)b.x=(minX+maxX)/2; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
     if(b.y<minY){b.y=minY;b.vy*=-.4}else if(b.y>maxY){b.y=maxY;b.vy*=-.4}
+    if(near>frameNear)frameNear=near;
     b.fold=near>b.fold?b.fold+(near-b.fold)*.35:b.fold*.96;
     const rot=reduce?0:Math.max(-10,Math.min(10,b.vx*.8));
     b.el.style.transform=`translate(${b.x.toFixed(1)}px,${b.y.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scaleY(${(1-b.fold*.15).toFixed(3)})`;
   }
+
+  proximity+=(frameNear-proximity)*(frameNear>proximity?.2:.05);
 
   // edge glow + status
   const side=threat?(threat.cx<innerWidth/2?'left':'right'):null;
@@ -501,41 +505,79 @@ function tick(){
 requestAnimationFrame(tick);
 
 /* ---------- background music (generated live, no audio files) ----------
-   A soft pad under a pentatonic pluck. It speeds up and brightens as a hand gets close,
-   so the music panics with the interface. */
+   A sneaky, swung tiptoe tune in E minor: plucked pizzicato motifs with a cheeky flat fifth,
+   a staccato bass that creeps chromatically into each bar, and a soft off-beat tick.
+   The bass grows louder, brighter and busier the closer a hand gets to the elements. */
 const Music=(()=>{
-  let ctx,master,filter,delay,pad=[],next=0,step=0,timer=0,on=false;
-  const chords=[[57,60,64,67],[53,57,60,64],[48,52,55,60],[55,59,62,67]]; // Am7  Fmaj7  C  G
-  const scale=[69,72,74,76,79,81,84,86,88];                              // A minor pentatonic
+  let ctx,master,mel,bassF,bassBus,subBus,hatBuf,next=0,step=0,timer=0,on=false;
   const hz=m=>440*2**((m-69)/12);
+  const roots=[40,40,36,35];               // E  E  C  B, one per bar
+  const bassPat={0:0,3:0,6:7,8:0,11:12};   // offsets from the root, in 16ths
+  const motifs=[                          // two-bar phrases (32 sixteenths)
+    {0:76,2:79,4:81,5:82,6:83,10:79,12:76,16:74,18:76,22:71,28:76},
+    {0:83,3:82,4:81,6:79,8:76,12:78,14:79,16:76,20:71,24:74,26:75,28:76},
+    {2:76,4:76,6:79,10:76,12:82,13:83,18:86,20:83,24:79,28:76},
+  ];
+  let motif=motifs[0];
   function init(){
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);
-    delay=ctx.createDelay(1);delay.delayTime.value=.33;
-    const fb=ctx.createGain();fb.gain.value=.35;const wet=ctx.createGain();wet.gain.value=.3;
-    delay.connect(fb);fb.connect(delay);delay.connect(wet);wet.connect(master);
-    filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=700;filter.connect(master);
-    for(let i=0;i<4;i++){const o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';g.gain.value=.045;o.connect(g);g.connect(filter);o.start();pad.push(o)}
+    // melody, with a short slap of echo
+    mel=ctx.createGain();mel.connect(master);
+    const delay=ctx.createDelay(1);delay.delayTime.value=.21;
+    const fb=ctx.createGain();fb.gain.value=.25;const wet=ctx.createGain();wet.gain.value=.2;
+    mel.connect(delay);delay.connect(fb);fb.connect(delay);delay.connect(wet);wet.connect(master);
+    // bass: level, sub-octave and brightness follow how close a hand is
+    bassF=ctx.createBiquadFilter();bassF.type='lowpass';bassF.frequency.value=220;bassF.Q.value=4;
+    bassBus=ctx.createGain();bassBus.gain.value=.16;bassF.connect(bassBus);bassBus.connect(master);
+    subBus=ctx.createGain();subBus.gain.value=0;subBus.connect(master);
+    // a tiny burst of noise for the off-beat tick
+    hatBuf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*.04),ctx.sampleRate);
+    const d=hatBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);
   }
-  function pluck(t,m,vel){
-    const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=hz(m);
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.6);
-    o.connect(g);g.connect(master);g.connect(delay);o.start(t);o.stop(t+.65);
+  function pizz(t,m,vel){
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';o.frequency.value=hz(m);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+.18);
+    o.connect(g);g.connect(mel);o.start(t);o.stop(t+.2);
+  }
+  function bass(t,m,len,vel){
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.value=hz(m);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+len);
+    o.connect(g);g.connect(bassF);o.start(t);o.stop(t+len+.02);
+    const s=ctx.createOscillator(),sg=ctx.createGain();s.type='sine';s.frequency.value=hz(m-12);
+    sg.gain.setValueAtTime(0,t);sg.gain.linearRampToValueAtTime(vel,t+.01);sg.gain.exponentialRampToValueAtTime(.0001,t+len*1.4);
+    s.connect(sg);sg.connect(subBus);s.start(t);s.stop(t+len*1.4+.02);
+  }
+  function hat(t,vel){
+    const n=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();
+    n.buffer=hatBuf;f.type='highpass';f.frequency.value=7000;g.gain.value=vel;
+    n.connect(f);f.connect(g);g.connect(master);n.start(t);
   }
   function tickMusic(){
-    const p=won?0:panic, eighth=60/(84+60*p)/2;
-    while(next<ctx.currentTime+.12){
-      if(step%16===0){const c=chords[(step/16)%4];pad.forEach((o,i)=>o.frequency.setTargetAtTime(hz(c[i]-12),next,.4))}
-      if(Math.random()<.45+.5*p){const m=scale[Math.floor(Math.random()*scale.length)];pluck(next,m+(p>.6&&Math.random()<.3?12:0),.08+.06*p)}
-      next+=eighth;step++;
+    const p=won?0:panic, near=won?0:proximity, now=ctx.currentTime;
+    const six=60/(108+18*p)/4; // a sixteenth; a little faster when a hand is near the phone
+    bassBus.gain.setTargetAtTime(.16+.42*near,now,.15);
+    subBus.gain.setTargetAtTime(.5*near,now,.15);
+    bassF.frequency.setTargetAtTime(220+1100*near,now,.15);
+    while(next<now+.12){
+      const s=step%16, bar=Math.floor(step/16)%4, root=roots[bar];
+      const t=next+(s%4===2?six*.33:0); // swing the off-beat eighths
+      if(s===0&&bar%2===0)motif=motifs[Math.floor(Math.random()*motifs.length)];
+      if(bassPat[s]!==undefined)bass(t,root+bassPat[s],.2,.5);
+      else if(s===14)bass(t,roots[(bar+1)%4]-1,.12,.4);     // creep a semitone under the next root
+      else if(near>.55&&s%2===0)bass(t,root,.08,.3*near); // right up close: the bass gets restless
+      const m=motif[(bar%2)*16+s];
+      if(m&&!(bar===3&&s>8))pizz(t,m,.07+.03*p);
+      if(s%4===2)hat(t,.025+.03*p);
+      next+=six;step++;
     }
-    filter.frequency.setTargetAtTime(600+2400*p,ctx.currentTime,.3);
   }
   return{
     get on(){return on},
-    start(){if(!ctx)init();ctx.resume();on=true;next=ctx.currentTime+.05;master.gain.setTargetAtTime(.5,ctx.currentTime,.8);clearInterval(timer);timer=setInterval(tickMusic,25)},
+    start(){if(!ctx)init();ctx.resume();on=true;next=ctx.currentTime+.05;master.gain.setTargetAtTime(.4,ctx.currentTime,.6);clearInterval(timer);timer=setInterval(tickMusic,25)},
     stop(){if(!ctx)return;on=false;master.gain.setTargetAtTime(0,ctx.currentTime,.3);setTimeout(()=>{if(!on){clearInterval(timer);ctx.suspend()}},900)},
-    win(){if(!on)return;const t=ctx.currentTime+.05;[69,73,76,81,85,88,93].forEach((m,i)=>pluck(t+i*.09,m,.13))} // A major run-up
+    // a sneaky chromatic run, then a bright "ta-da"
+    win(){if(!on)return;const t=ctx.currentTime+.05;[76,78,79,81,82,83,88].forEach((m,i)=>pizz(t+i*.07,m,.1));[76,80,83,88].forEach(m=>pizz(t+.6,m,.08))}
   };
 })();
 const musBtn=document.getElementById('musBtn'),musTxt=document.getElementById('musTxt');
