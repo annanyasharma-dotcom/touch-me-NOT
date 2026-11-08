@@ -67,6 +67,30 @@ label,.legend{font-size:17px;font-weight:500}
 .cursor::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink)}
 .cursor.on{opacity:1}
 .cursor.pinch{width:30px;height:30px;margin:-15px 0 0 -15px;box-shadow:0 1px 0 var(--ink)}
+/* pinch meter: the ring fills as thumb and index come together */
+.cursor::before{content:"";position:absolute;inset:-9px;border-radius:50%;
+  background:conic-gradient(var(--alert) calc(var(--p,0) * 360deg),color-mix(in srgb,var(--ink) 12%,transparent) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));
+          mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px))}
+.cursor .lbl{position:absolute;left:calc(100% + 14px);top:50%;transform:translateY(-50%);white-space:nowrap;
+  background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:6px 9px;opacity:0;transition:opacity .15s}
+.cursor.flip .lbl{left:auto;right:calc(100% + 14px)}
+.cursor.show .lbl{opacity:1}
+.bait.target{outline:2px dashed var(--ink);outline-offset:4px}
+
+/* hand skeleton */
+.handcv{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:28}
+
+/* coach: always-visible instruction while the camera is on */
+.coach{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:45;
+  display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);padding:9px 14px 9px 10px;
+  font-size:14px;font-weight:600;white-space:nowrap;max-width:calc(100vw - 32px)}
+.coach svg{width:34px;height:22px;flex:none}
+.coach .t{animation:thumb 1.6s ease-in-out infinite}
+.coach .i{animation:index 1.6s ease-in-out infinite}
+@keyframes thumb{0%,15%{transform:translateX(0)}50%,70%{transform:translateX(7px)}100%{transform:translateX(0)}}
+@keyframes index{0%,15%{transform:translateX(0)}50%,70%{transform:translateX(-7px)}100%{transform:translateX(0)}}
+@media (prefers-reduced-motion:reduce){.coach .t,.coach .i{animation:none}}
 
 /* caught elements stay put */
 .bait.held{outline:2.5px solid var(--ink);outline-offset:3px;background:var(--sticker);border-color:var(--sticker-line)}
@@ -157,7 +181,12 @@ label,.legend{font-size:17px;font-weight:500}
 
 <div class="edge l" id="edgeL"></div>
 <div class="edge r" id="edgeR"></div>
-<div class="cursor" id="cursor" aria-hidden="true"></div>
+<canvas class="handcv" id="handcv" aria-hidden="true"></canvas>
+<div class="cursor" id="cursor" aria-hidden="true"><span class="lbl" id="cursorLbl">Pinch to catch</span></div>
+<div class="coach" id="coach" hidden>
+  <svg viewBox="0 0 34 22" aria-hidden="true"><circle class="t" cx="8" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/><circle class="i" cx="26" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/></svg>
+  Pinch thumb + index to catch
+</div>
 
 <div class="dock">
   <span class="stat" id="hand">No hand</span>
@@ -188,7 +217,7 @@ addEventListener('orientationchange',()=>setTimeout(measure,300));
 document.fonts?.ready.then(measure);
 
 /* ---------- input state ---------- */
-const cursor=document.getElementById('cursor');
+const cursor=document.getElementById('cursor'),cursorLbl=document.getElementById('cursorLbl'),coach=document.getElementById('coach');
 let pointerPts=[],handCursor=null; // handCursor: index fingertip (or pinch point) in screen px
 // whole-hand threat: where the hand is (screen px, may be off-screen) and how close it is to the phone (0..1)
 let threat=null;
@@ -217,7 +246,45 @@ function pinchCatch(cx,cy){
     const r=b.el.getBoundingClientRect(),m=16;
     if(cx>r.left-m&&cx<r.right+m&&cy>r.top-m&&cy<r.bottom+m){
       if(b.el.tagName==='INPUT')b.el.focus({preventScroll:true});else b.el.click();
-      return;
+      return true;
+    }
+  }
+  return false;
+}
+function targetAt(cx,cy){
+  for(const b of baits){
+    if(b.held)continue;
+    const r=b.el.getBoundingClientRect(),m=16;
+    if(cx>r.left-m&&cx<r.right+m&&cy>r.top-m&&cy<r.bottom+m)return b;
+  }
+  return null;
+}
+
+/* ---------- hand skeleton ---------- */
+const cv=document.getElementById('handcv'),g=cv.getContext('2d');
+let hands2d=[],caughtAt=-1e9,target=null;
+function sizeCv(){const d=devicePixelRatio||1;cv.width=innerWidth*d;cv.height=innerHeight*d;g.setTransform(d,0,0,d,0,0)}
+sizeCv();addEventListener('resize',sizeCv);
+const BONES=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+function drawHands(){
+  g.clearRect(0,0,innerWidth,innerHeight);
+  for(const h of hands2d){
+    // palm
+    g.beginPath();for(const i of[0,1,5,9,13,17])g.lineTo(h[i].cx,h[i].cy);g.closePath();
+    g.fillStyle='rgba(253,232,187,.35)';g.fill();
+    // bones
+    g.lineCap='round';g.lineJoin='round';g.lineWidth=3;g.strokeStyle='rgba(11,11,11,.6)';
+    g.beginPath();for(const[a,b]of BONES){g.moveTo(h[a].cx,h[a].cy);g.lineTo(h[b].cx,h[b].cy)}g.stroke();
+    // thumb to index: the pinch gap, redder as it closes
+    const size=Math.hypot(h[0].cx-h[9].cx,h[0].cy-h[9].cy)||1;
+    const prog=Math.max(0,Math.min(1,(.9-Math.hypot(h[4].cx-h[8].cx,h[4].cy-h[8].cy)/size)/.55));
+    g.setLineDash([5,5]);g.lineWidth=2.5;g.strokeStyle=`rgba(255,90,31,${.35+.65*prog})`;
+    g.beginPath();g.moveTo(h[4].cx,h[4].cy);g.lineTo(h[8].cx,h[8].cy);g.stroke();g.setLineDash([]);
+    // joints
+    for(let i=0;i<21;i++){
+      const tip=i===4||i===8;
+      g.beginPath();g.arc(h[i].cx,h[i].cy,tip?7:3.5,0,Math.PI*2);
+      g.fillStyle=tip?'#fde8bb':'#ffffff';g.fill();g.lineWidth=1.8;g.strokeStyle='#0b0b0b';g.stroke();
     }
   }
 }
@@ -240,10 +307,19 @@ measure();
 function tick(){
   const raw=handCursor?[handCursor]:pointerPts;
   const pts=raw.map(p=>({x:p.cx+scrollX,y:p.cy+scrollY,idx:p.idx}));
+  drawHands();
+  const nt=handCursor?targetAt(handCursor.cx,handCursor.cy):null;
+  if(nt!==target){target?.el.classList.remove('target');nt?.el.classList.add('target');target=nt}
   if(handCursor){
     cursor.classList.add('on');cursor.classList.toggle('pinch',handCursor.pinch);
+    cursor.style.setProperty('--p',handCursor.prog.toFixed(2));
     cursor.style.transform=`translate(${handCursor.cx.toFixed(1)}px,${handCursor.cy.toFixed(1)}px)`;
-  }else cursor.classList.remove('on');
+    const justCaught=performance.now()-caughtAt<900;
+    const txt=justCaught?'Caught!':target?'Pinch to catch':'';
+    if(cursorLbl.textContent!==txt&&txt)cursorLbl.textContent=txt;
+    cursor.classList.toggle('show',!!txt);
+    cursor.classList.toggle('flip',handCursor.cx>innerWidth*.6);
+  }else cursor.classList.remove('on','show');
 
   // panic rises fast when a hand appears, settles slowly when it leaves
   const want=threat?0.35+0.65*threat.close:0;
@@ -324,7 +400,7 @@ camBtn.addEventListener('click',async()=>{
       runningMode:'VIDEO',numHands:2,
       // low thresholds so a hand is caught early, while only part of it is in view at the edge
       minHandDetectionConfidence:.3,minHandPresenceConfidence:.3,minTrackingConfidence:.3});
-    camBtn.textContent='Camera on';
+    camBtn.textContent='Camera on';coach.hidden=false;
     let last=-1,lost=0;
     const loop=()=>{
       if(video.currentTime!==last){
@@ -345,10 +421,12 @@ camBtn.addEventListener('click',async()=>{
           const L=cur.lm;
           const p=pinch?toScreen((L[4].x+L[8].x)/2,(L[4].y+L[8].y)/2):toScreen(L[8].x,L[8].y);
           if(handCursor){p.cx=handCursor.cx+(p.cx-handCursor.cx)*.55;p.cy=handCursor.cy+(p.cy-handCursor.cy)*.55} // smooth jitter
-          handCursor={...p,idx:true,pinch};
-          if(pinch&&!was)pinchCatch(p.cx,p.cy);
+          const prog=Math.max(0,Math.min(1,(.9-cur.pinchD)/.55));
+          handCursor={...p,idx:true,pinch,prog:pinch?1:prog};
+          if(pinch&&!was&&pinchCatch(p.cx,p.cy))caughtAt=performance.now();
         }
-        if(best){threat=best;lost=0}else if(++lost>6){threat=null;handCursor=null} // brief dropouts don't reset
+        hands2d=(res.landmarks||[]).map(lm=>lm.map(q=>toScreen(q.x,q.y)));
+        if(best){threat=best;lost=0}else if(++lost>6){threat=null;handCursor=null;hands2d=[]} // brief dropouts don't reset
       }
       requestAnimationFrame(loop);
     };
