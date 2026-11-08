@@ -124,7 +124,8 @@ label,.legend{font-size:17px;font-weight:500}
 .r-rate{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted)}
 .rate{font-family:var(--display);font-stretch:125%;font-weight:900;text-transform:uppercase;font-size:18px;color:var(--ink);
   background:var(--sticker);border:1.5px solid var(--sticker-line);padding:4px 10px;transform:rotate(-2deg);display:inline-block}
-.again{font-size:16px;font-weight:600;padding:12px 18px;background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.again{font-size:16px;font-weight:600;padding:12px 18px;background:var(--ink);color:var(--bg);border-color:var(--ink);display:inline-flex;align-items:center;gap:8px}
+.again svg{width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
 /* once won, caught elements go back to looking like a calm, finished form */
 .won .bait.held{outline:none;background:var(--field);border-color:var(--line)}
 .won .input.bait.held{background:var(--field)}
@@ -209,16 +210,17 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.35;display:block}
 <body>
 <div class="page">
   <div class="top">
-    <button class="box back" type="button" id="again"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 10a6.5 6.5 0 1 0 2.2-4.9"/><path d="M3 3.5v4h4"/></svg>PLAY AGAIN</button>
+    <button class="box back bait" type="button" id="back"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H4M9 4l-6 6 6 6"/></svg>(GO) BACK</button>
     <h1 aria-label="Touch me not"><span class="row">Touch</span><span class="row">Me <span class="sticker" id="sticker">Not</span></span></h1>
     <div class="intro" id="intro">
       <p>This interface was created in the honour of the touch-me-not plant. the ui elements move whenever you try to come close to it.</p>
       <p>The interface uses MediaPipe Hand Landmarker and coordinate mapping to do the same.</p>
     </div>
     <div class="result" id="result" hidden>
-      <p class="r-line">Caught all <b id="rCount">10</b> in <b id="rTime">0s</b></p>
+      <p class="r-line">Caught all <b id="rCount">11</b> in <b id="rTime">0s</b></p>
       <p class="r-rate">Your rating <span class="rate" id="rRate">Full grab</span></p>
       <p class="r-rate" id="rPinch"></p>
+      <button class="box again" id="again" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 10a6.5 6.5 0 1 0 2.2-4.9"/><path d="M3 3.5v4h4"/></svg>Play again</button>
     </div>
   </div>
 
