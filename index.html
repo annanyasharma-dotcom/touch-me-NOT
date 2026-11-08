@@ -266,7 +266,9 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.35;display:block}
   .submit,.reset{padding-block:12px}
 }
 /* when everything fits, the page itself never scrolls; elements can still slide off the edge and come back */
-html.fits,html.fits body{overflow:hidden;overscroll-behavior:none}
+/* only the window clips (at the real screen edge); the page box itself never cuts elements off */
+html.fits{overflow:hidden;overscroll-behavior:none}
+html.fits body{overscroll-behavior:none}
 </style>
 </head>
 <body>
