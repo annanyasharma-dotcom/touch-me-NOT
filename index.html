@@ -557,7 +557,10 @@ function tick(){
     // keep inside the visible width and the page height
     const minX=scrollX+GUTTER+b.w/2-b.hx, maxX=scrollX+vw-GUTTER-b.w/2-b.hx;
     const minY=GUTTER+b.h/2-b.hy;
-    let maxY=pageH-GUTTER-b.h/2-b.hy;
+    // elements may slide out past the bottom of the screen (fully, plus a little) and spring back in;
+    // the page doesn't scroll, so out there they're simply off-screen until they return
+    const outBelow=scrollY+innerHeight+b.h/2+Math.max(b.h,120);
+    let maxY=Math.max(pageH-GUTTER-b.h/2,outBelow)-b.hy;
     // Clear sits lowest on the page: it may not run below the visible screen (or under a floating bottom bar)
     if(b.el.id==='reset')maxY=Math.max(0,Math.min(maxY,visBottom-b.h/2-b.hy));
     if(minX>maxX)b.x=(minX+maxX)/2; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
