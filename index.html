@@ -626,7 +626,12 @@ const NotesStore=(()=>{
         mode=(uid&&w!==false)?'claude':'claude-read';
         db.collection('notes').onSnapshot(s=>{
           const all=[];
-          for(const d of s.docs){const items=(d.data()?.items)||[];if(d.id===uid)myItems=items;all.push(...items)}
+          for(const d of s.docs){
+            const items=(d.data()?.items)||[];
+            // your account's own document: its notes are yours to delete, from any device
+            if(uid&&d.id===uid){myItems=items;items.forEach(n=>myIds.add(n.id))}
+            all.push(...items);
+          }
           onShared(all);
         },()=>{});
       }catch{}
