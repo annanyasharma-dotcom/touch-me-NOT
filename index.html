@@ -60,11 +60,19 @@ label,.legend{font-size:17px;font-weight:500}
 .edge.l{left:0;background:linear-gradient(90deg,color-mix(in srgb,var(--alert) 45%,transparent),transparent)}
 .edge.r{right:0;background:linear-gradient(270deg,color-mix(in srgb,var(--alert) 45%,transparent),transparent)}
 
-/* fingertips */
-.tip{position:fixed;left:0;top:0;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;pointer-events:none;z-index:30;
-  border:1.5px solid var(--ink);background:color-mix(in srgb,var(--sticker) 60%,transparent);opacity:0;transition:opacity .15s}
-.tip.on{opacity:1}
-.tip.idx{width:30px;height:30px;margin:-15px 0 0 -15px;background:color-mix(in srgb,var(--sticker) 90%,transparent)}
+/* the single hand cursor */
+.cursor{position:fixed;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;pointer-events:none;z-index:30;
+  background:var(--sticker);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);opacity:0;display:grid;place-items:center;
+  transition:opacity .15s,width .12s,height .12s,margin .12s,box-shadow .12s}
+.cursor::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.cursor.on{opacity:1}
+.cursor.pinch{width:30px;height:30px;margin:-15px 0 0 -15px;box-shadow:0 1px 0 var(--ink)}
+
+/* caught elements stay put */
+.bait.held{outline:2.5px solid var(--ink);outline-offset:3px;background:var(--sticker);border-color:var(--sticker-line)}
+.input.bait.held{background:#fff8e6}
+.submit.bait.held{color:var(--ink)}
+.letgo{font:inherit;font-size:15px;font-weight:600;padding:12px 16px;background:var(--sticker);color:var(--ink);border:1.5px solid var(--ink);cursor:pointer}
 
 /* camera dock */
 .dock{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));
@@ -149,10 +157,12 @@ label,.legend{font-size:17px;font-weight:500}
 
 <div class="edge l" id="edgeL"></div>
 <div class="edge r" id="edgeR"></div>
+<div class="cursor" id="cursor" aria-hidden="true"></div>
 
 <div class="dock">
   <span class="stat" id="hand">No hand</span>
   <span class="stat">Caught <b id="score">0</b></span>
+  <button class="letgo" id="letGo" type="button" hidden>Let go</button>
   <video id="preview" playsinline muted hidden></video>
   <button class="cam" id="camBtn" type="button">Use camera</button>
   <p class="note" id="note"></p>
@@ -178,9 +188,8 @@ addEventListener('orientationchange',()=>setTimeout(measure,300));
 document.fonts?.ready.then(measure);
 
 /* ---------- input state ---------- */
-const tips=[];
-function tipEl(i){if(!tips[i]){const d=document.createElement('div');d.className='tip';document.body.appendChild(d);tips[i]=d}return tips[i]}
-let pointerPts=[],handPts=[];
+const cursor=document.getElementById('cursor');
+let pointerPts=[],handCursor=null; // handCursor: index fingertip (or pinch point) in screen px
 // whole-hand threat: where the hand is (screen px, may be off-screen) and how close it is to the phone (0..1)
 let threat=null;
 const active=new Map();
@@ -192,14 +201,32 @@ addEventListener('pointerup',lift);addEventListener('pointercancel',lift);
 document.documentElement.addEventListener('mouseleave',()=>{active.clear();pointerPts=[]});
 
 /* ---------- clicks that land anyway ---------- */
-let score=0;
-const caught=el=>{score++;document.getElementById('score').textContent=score;el.classList.remove('caught');void el.offsetWidth;el.classList.add('caught')};
+const scoreEl=document.getElementById('score'),letGo=document.getElementById('letGo');
+const byEl=new Map(baits.map(b=>[b.el,b]));
+function refresh(){const n=baits.filter(b=>b.held).length;scoreEl.textContent=n;letGo.hidden=!n}
+function hold(b){
+  if(!b||b.held)return;
+  b.held=true;b.vx=b.vy=0;b.el.classList.add('held');
+  b.el.classList.remove('caught');void b.el.offsetWidth;b.el.classList.add('caught');refresh();
+}
+letGo.addEventListener('click',()=>{for(const b of baits){b.held=false;b.el.classList.remove('held')}document.activeElement?.blur?.();refresh()});
+// pinch over an element catches it: fields get focus so you can type, buttons get pressed
+function pinchCatch(cx,cy){
+  for(const b of baits){
+    if(b.held)continue;
+    const r=b.el.getBoundingClientRect(),m=16;
+    if(cx>r.left-m&&cx<r.right+m&&cy>r.top-m&&cy<r.bottom+m){
+      if(b.el.tagName==='INPUT')b.el.focus({preventScroll:true});else b.el.click();
+      return;
+    }
+  }
+}
 document.querySelectorAll('button.bait').forEach(el=>el.addEventListener('click',()=>{
-  caught(el);
+  hold(byEl.get(el));
   if(el.dataset.group){document.querySelectorAll(`[data-group="${el.dataset.group}"]`).forEach(c=>c.setAttribute('aria-pressed',c===el))}
   else if(el.hasAttribute('aria-pressed'))el.setAttribute('aria-pressed',el.getAttribute('aria-pressed')!=='true');
 }));
-document.querySelectorAll('input.bait').forEach(el=>el.addEventListener('focus',()=>caught(el)));
+document.querySelectorAll('input.bait').forEach(el=>el.addEventListener('focus',()=>hold(byEl.get(el))));
 document.getElementById('form').addEventListener('submit',e=>e.preventDefault());
 document.getElementById('reset').addEventListener('click',()=>{
   document.querySelectorAll('#form input').forEach(i=>i.value='');
@@ -211,10 +238,12 @@ const edgeL=document.getElementById('edgeL'),edgeR=document.getElementById('edge
 let panic=0;
 measure();
 function tick(){
-  const raw=handPts.length?handPts:pointerPts;
+  const raw=handCursor?[handCursor]:pointerPts;
   const pts=raw.map(p=>({x:p.cx+scrollX,y:p.cy+scrollY,idx:p.idx}));
-  raw.forEach((p,i)=>{const t=tipEl(i);t.classList.add('on');t.classList.toggle('idx',!!p.idx);t.style.transform=`translate(${p.cx}px,${p.cy}px)`});
-  for(let i=raw.length;i<tips.length;i++)tips[i].classList.remove('on');
+  if(handCursor){
+    cursor.classList.add('on');cursor.classList.toggle('pinch',handCursor.pinch);
+    cursor.style.transform=`translate(${handCursor.cx.toFixed(1)}px,${handCursor.cy.toFixed(1)}px)`;
+  }else cursor.classList.remove('on');
 
   // panic rises fast when a hand appears, settles slowly when it leaves
   const want=threat?0.35+0.65*threat.close:0;
@@ -223,6 +252,7 @@ function tick(){
 
   const vw=document.documentElement.clientWidth;
   for(const b of baits){
+    if(b.held)continue; // caught: it stays where you caught it
     const cx=b.hx+b.x, cy=b.hy+b.y;
     let fx=0,fy=0,near=0;
     // 1. fingertips close by push the element away
@@ -258,7 +288,7 @@ function tick(){
   // edge glow + status
   const side=threat?(threat.cx<innerWidth/2?'left':'right'):null;
   edgeL.style.opacity=side==='left'?panic:0; edgeR.style.opacity=side==='right'?panic:0;
-  const label=side?`Hand on the ${side}${threat.close>.6?', very close':''}`:'No hand';
+  const label=side?(threat.close>.6?`Hand on the ${side}, very close`:'Pinch to catch'):'No hand';
   if(handEl.textContent!==label){handEl.textContent=label;handEl.classList.toggle('hot',!!side)}
   requestAnimationFrame(tick);
 }
@@ -299,19 +329,26 @@ camBtn.addEventListener('click',async()=>{
     const loop=()=>{
       if(video.currentTime!==last){
         last=video.currentTime;
-        const res=hands.detectForVideo(video,performance.now()), out=[];
-        let best=null;
+        const res=hands.detectForVideo(video,performance.now());
+        let best=null,cur=null;
         for(const lm of res.landmarks||[]){
-          for(const i of TIPS){const p=toScreen(lm[i].x,lm[i].y);out.push({...p,idx:i===8})}
           // hand size in the frame (wrist to middle knuckle) says how close it is to the phone
-          const size=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y);
+          const size=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y)||.01;
           const close=Math.max(0,Math.min(1,(size-.06)/.22));
           let mx=0,my=0;for(const p of lm){mx+=p.x;my+=p.y}
           const c=toScreen(mx/lm.length,my/lm.length);
-          if(!best||close>best.close)best={...c,close};
+          if(!best||close>best.close){best={...c,close};cur={lm,pinchD:Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/size}}
         }
-        handPts=out;
-        if(best){threat=best;lost=0}else if(++lost>6)threat=null; // brief dropouts don't reset the run
+        if(cur){
+          const was=handCursor?.pinch;
+          const pinch=was?cur.pinchD<.55:cur.pinchD<.35; // hysteresis so it doesn't flicker
+          const L=cur.lm;
+          const p=pinch?toScreen((L[4].x+L[8].x)/2,(L[4].y+L[8].y)/2):toScreen(L[8].x,L[8].y);
+          if(handCursor){p.cx=handCursor.cx+(p.cx-handCursor.cx)*.55;p.cy=handCursor.cy+(p.cy-handCursor.cy)*.55} // smooth jitter
+          handCursor={...p,idx:true,pinch};
+          if(pinch&&!was)pinchCatch(p.cx,p.cy);
+        }
+        if(best){threat=best;lost=0}else if(++lost>6){threat=null;handCursor=null} // brief dropouts don't reset
       }
       requestAnimationFrame(loop);
     };
