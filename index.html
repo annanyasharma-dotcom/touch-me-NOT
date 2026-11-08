@@ -580,65 +580,77 @@ document.getElementById('again').addEventListener('click',()=>{
 });
 
 /* ---------- notes wall ----------
-   Inside Claude the notes live in this page's shared store; on your own site they live behind /api/notes. */
+   Every note sticks on this device right away (saved in the browser). When shared storage is
+   reachable (this page's store inside Claude, or /api/notes on your own site) it is also shared,
+   and everyone else's notes appear. If shared storage isn't set up, posting still works. */
+const LOCAL_KEY='touch-me-not:notes';
+const readLocal=()=>{try{const v=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]');return Array.isArray(v)?v:[]}catch{return[]}};
+const writeLocal=list=>{try{localStorage.setItem(LOCAL_KEY,JSON.stringify(list.slice(0,200)))}catch{}};
+let localNotes=readLocal(),sharedNotes=[];
+
 const NotesStore=(()=>{
-  let mode=null,db=null,uid=null,myItems=[],canWrite=true,load=null;
-  async function init(onList,onState){
+  let mode=null,db=null,uid=null,myItems=[],load=null;
+  async function init(onShared){
+    // the Claude viewer may attach its bridge a moment after load
+    for(let i=0;i<15&&!window.claude?.use;i++)await new Promise(r=>setTimeout(r,100));
     if(window.claude?.use){
-      mode='claude';
-      db=await window.claude.use('db');
-      if(!db){onState('unavailable');return}
-      const user=await window.claude.use('user');
-      uid=user?await user.id():null;
-      const w=user?await user.can('data.write'):null;
-      if(!uid||w===false)canWrite=false;
-      const slow=setTimeout(()=>onState('slow'),10000);
-      db.collection('notes').onSnapshot(s=>{
-        clearTimeout(slow);
-        const all=[];
-        for(const d of s.docs){const items=(d.data()?.items)||[];if(d.id===uid)myItems=items;all.push(...items)}
-        onList(all);
-      },()=>{clearTimeout(slow);onState('error')});
-    }else{
-      mode='api';
-      load=async()=>{
-        try{
-          const r=await fetch('/api/notes',{cache:'no-store'});
-          if(r.status===503||r.status===404){onState('not-connected');return}
-          if(!r.ok)throw 0;
-          onList((await r.json()).notes||[]);
-        }catch{onState('error')}
-      };
-      await load();setInterval(load,15000);
+      try{
+        db=await window.claude.use('db');
+        if(!db)return;
+        const user=await window.claude.use('user');
+        uid=user?await user.id():null;
+        const w=user?await user.can('data.write'):null;
+        mode=(uid&&w!==false)?'claude':'claude-read';
+        db.collection('notes').onSnapshot(s=>{
+          const all=[];
+          for(const d of s.docs){const items=(d.data()?.items)||[];if(d.id===uid)myItems=items;all.push(...items)}
+          onShared(all);
+        },()=>{});
+      }catch{}
+      return;
     }
+    load=async()=>{
+      try{
+        const r=await fetch('/api/notes',{cache:'no-store'});
+        if(!r.ok){mode=null;return}
+        mode='api';onShared((await r.json()).notes||[]);
+      }catch{mode=null}
+    };
+    await load();setInterval(load,15000);
   }
-  async function add(note){
-    if(mode==='claude'){
-      if(!canWrite)throw{code:'readonly'};
-      // each person keeps their own notes in one document under their id
-      await db.doc('notes/'+uid).set({items:[note,...myItems].slice(0,50)});
-      return note;
-    }
-    const r=await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(note)});
-    if(r.status===503||r.status===404)throw{code:'not-connected'};
-    if(!r.ok)throw{code:'error'};
-    const saved=(await r.json()).note;
-    await load?.();
-    return saved;
+  // resolves true when the note was shared, false when it only stuck on this device
+  async function share(note){
+    try{
+      if(mode==='claude'){
+        await db.doc('notes/'+uid).set({items:[note,...myItems].slice(0,50)});
+        return true;
+      }
+      if(mode==='api'||load){
+        const r=await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(note)});
+        if(!r.ok)return false;
+        const saved=(await r.json()).note;
+        if(saved?.id&&saved.id!==note.id){note.id=saved.id}
+        await load?.();
+        return true;
+      }
+    }catch{}
+    return false;
   }
-  return{init,add};
+  return{init,share};
 })();
 
 const notesSec=document.getElementById('notes'),gameForm=document.getElementById('form');
 const wall=document.getElementById('wall'),nCount=document.getElementById('nCount'),nMsg=document.getElementById('nMsg');
 const noteForm=document.getElementById('noteForm'),nPost=document.getElementById('nPost'),nName=document.getElementById('nName'),nText=document.getElementById('nText');
-let lastResult={rating:'',secs:0},lastList=[],notesStarted=false;
-const myIds=new Set();
+let lastResult={rating:'',secs:0},notesStarted=false;
+const myIds=new Set(localNotes.map(n=>n.id));
 const fmtTime=s=>!s?'':s<60?`${s}s`:`${Math.floor(s/60)}m ${s%60}s`;
 function wallMessage(t){const p=document.createElement('p');p.className='wall-empty';p.textContent=t;wall.replaceChildren(p);nCount.textContent=''}
-function renderNotes(list){
-  lastList=list;
-  const notes=list.filter(n=>n&&typeof n.text==='string'&&n.text.trim()).sort((a,b)=>(b.at||0)-(a.at||0));
+function renderNotes(){
+  // shared notes plus this device's own, without duplicates
+  const byId=new Map();
+  for(const n of[...sharedNotes,...localNotes])if(n&&typeof n.text==='string'&&n.text.trim()&&!byId.has(n.id))byId.set(n.id,n);
+  const notes=[...byId.values()].sort((a,b)=>(b.at||0)-(a.at||0));
   if(!notes.length){wallMessage('No notes yet. Be the first to leave one.');return}
   wall.replaceChildren();
   for(const n of notes){
@@ -653,33 +665,23 @@ function renderNotes(list){
   nCount.textContent=`${notes.length} note${notes.length===1?'':'s'}`;
 }
 function startNotes(){
+  renderNotes();
   if(notesStarted)return;notesStarted=true;
-  wallMessage('Loading notes…');
-  NotesStore.init(renderNotes,state=>{
-    if(state==='slow'&&!lastList.length)wallMessage('Still loading notes…');
-    else if(state==='not-connected')wallMessage("Notes aren't switched on for this site yet.");
-    else if(state==='unavailable')wallMessage("Notes can't load here.");
-    else if(state==='error'&&!lastList.length)wallMessage("Couldn't load notes. Check your connection.");
-  });
+  NotesStore.init(list=>{sharedNotes=list;renderNotes()});
 }
 noteForm.addEventListener('submit',async e=>{
   e.preventDefault();
   const text=nText.value.trim();
   if(!text){nMsg.textContent='Write a note first.';nText.focus();return}
-  nPost.disabled=true;nMsg.textContent='Posting…';
-  const note={id:(crypto.randomUUID?.()??Date.now().toString(36)+Math.random().toString(36).slice(2)),name:nName.value.trim().slice(0,40)||'Someone',text:text.slice(0,280),rating:lastResult.rating,time:lastResult.secs,at:Date.now()};
-  try{
-    const saved=await NotesStore.add(note);
-    myIds.add(saved?.id||note.id);
-    nText.value='';nMsg.textContent='Posted. Yours is highlighted.';
-    renderNotes(lastList);
-  }catch(err){
-    const c=err?.code;
-    nMsg.textContent=c==='not-connected'?"Notes aren't switched on for this site yet."
-      :(c==='readonly'||c==='invalid_argument')?'You can read notes here but not post one.'
-      :c==='quota_exceeded'?'The wall is full right now.'
-      :"Couldn't post your note. Try again.";
-  }finally{nPost.disabled=false}
+  nPost.disabled=true;
+  const note={id:(crypto.randomUUID?.()??Date.now().toString(36)+Math.random().toString(36).slice(2)),
+    name:nName.value.trim().slice(0,40)||'Someone',text:text.slice(0,280),rating:lastResult.rating,time:lastResult.secs,at:Date.now()};
+  // stick it on the wall straight away
+  localNotes=[note,...localNotes];myIds.add(note.id);writeLocal(localNotes);
+  nText.value='';nMsg.textContent='Stuck to the wall.';renderNotes();
+  const oldId=note.id;
+  if(await NotesStore.share(note)&&note.id!==oldId){myIds.add(note.id);writeLocal(localNotes);renderNotes()}
+  nPost.disabled=false;
 });
 
 /* ---------- camera hand tracking ---------- */
