@@ -456,6 +456,8 @@ function tick(){
     b.hx=r.left+r.width/2+scrollX-b.x; b.hy=r.top+r.height/2+scrollY-b.y;
     b.w=b.el.offsetWidth; b.h=b.el.offsetHeight;
   }
+  const visTop=scrollY+GUTTER;
+  const visBottom=scrollY+innerHeight-GUTTER-(getComputedStyle(dockEl).position==='static'?0:dockEl.offsetHeight);
   for(const b of baits){
     if(b.held)continue; // caught: it stays where you caught it
     const cx=b.hx+b.x, cy=b.hy+b.y;
@@ -482,13 +484,11 @@ function tick(){
     b.x+=b.vx; b.y+=b.vy;
     // keep inside the visible width and the page height
     const minX=scrollX+GUTTER+b.w/2-b.hx, maxX=scrollX+vw-GUTTER-b.w/2-b.hx;
-    const minY=GUTTER+b.h/2-b.hy;
-    let maxY=pageH-GUTTER-b.h/2-b.hy;
-    // Clear sits lowest on the page: it may not run below the visible screen (or under a floating bottom bar)
-    if(b.el.id==='reset'){
-      const visBottom=scrollY+innerHeight-GUTTER-(getComputedStyle(dockEl).position==='static'?0:dockEl.offsetHeight);
-      maxY=Math.max(0,Math.min(maxY,visBottom-b.h/2-b.hy));
-    }
+    // every element stays inside what you can see right now (and out from under a floating bottom bar),
+    // so nothing ever runs off-screen and you never have to scroll to catch it;
+    // one already resting off-screen just stays home instead of being dragged in
+    const minY=Math.min(0,visTop+b.h/2-b.hy);
+    const maxY=Math.max(0,Math.min(pageH-GUTTER-b.h/2-b.hy,visBottom-b.h/2-b.hy));
     if(minX>maxX)b.x=(minX+maxX)/2; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
     if(b.y<minY){b.y=minY;b.vy*=-.4}else if(b.y>maxY){b.y=maxY;b.vy*=-.4}
     b.fold=near>b.fold?b.fold+(near-b.fold)*.35:b.fold*.96;
