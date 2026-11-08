@@ -17,7 +17,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 *,*::before,*::after{box-sizing:border-box}
-.page{max-width:680px;margin:0 auto;padding-block:16px 96px}
+.page{max-width:680px;margin:0 auto;padding-block:16px 140px}
 
 /* header */
 .top{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px 28px;align-items:start}
@@ -82,9 +82,10 @@ label,.legend{font-size:17px;font-weight:500}
 .handcv{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:28}
 
 /* coach: always-visible instruction while the camera is on */
-.coach{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:45;
-  display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);padding:9px 14px 9px 10px;
-  font-size:14px;font-weight:600;white-space:nowrap;max-width:calc(100vw - 32px)}
+.coach-row{flex-basis:100%;display:flex;justify-content:flex-end}
+.coach{display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);padding:8px 12px 8px 9px;
+  font-size:14px;font-weight:600;max-width:100%}
+.coach span{min-width:0}
 .coach svg{width:34px;height:22px;flex:none}
 .coach .t{animation:thumb 1.6s ease-in-out infinite}
 .coach .i{animation:index 1.6s ease-in-out infinite}
@@ -113,7 +114,8 @@ label,.legend{font-size:17px;font-weight:500}
 
 /* phones: one column, compact, fits one screen */
 @media (max-width:560px){
-  .page{padding-block:12px 84px}
+  .page{padding-block:12px 130px}
+  .coach{font-size:13px}
   .top{grid-template-columns:minmax(0,1fr);gap:14px}
   .back{font-size:15px;padding:10px 16px}
   h1{font-size:clamp(30px,13.5vw,60px)}
@@ -183,12 +185,15 @@ label,.legend{font-size:17px;font-weight:500}
 <div class="edge r" id="edgeR"></div>
 <canvas class="handcv" id="handcv" aria-hidden="true"></canvas>
 <div class="cursor" id="cursor" aria-hidden="true"><span class="lbl" id="cursorLbl">Pinch to catch</span></div>
-<div class="coach" id="coach" hidden>
-  <svg viewBox="0 0 34 22" aria-hidden="true"><circle class="t" cx="8" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/><circle class="i" cx="26" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/></svg>
-  Pinch thumb + index to catch
-</div>
+
 
 <div class="dock">
+  <div class="coach-row">
+    <div class="coach" id="coach">
+      <svg viewBox="0 0 34 22" aria-hidden="true"><circle class="t" cx="8" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/><circle class="i" cx="26" cy="11" r="6" fill="#fde8bb" stroke="#fff" stroke-width="1.5"/></svg>
+      <span id="coachText">Turn on the camera, then pinch thumb + index to catch</span>
+    </div>
+  </div>
   <span class="stat" id="hand">No hand</span>
   <span class="stat">Caught <b id="score">0</b></span>
   <button class="letgo" id="letGo" type="button" hidden>Let go</button>
@@ -400,7 +405,7 @@ camBtn.addEventListener('click',async()=>{
       runningMode:'VIDEO',numHands:2,
       // low thresholds so a hand is caught early, while only part of it is in view at the edge
       minHandDetectionConfidence:.3,minHandPresenceConfidence:.3,minTrackingConfidence:.3});
-    camBtn.textContent='Camera on';coach.hidden=false;
+    camBtn.textContent='Camera on';document.getElementById('coachText').textContent='Pinch thumb + index to catch';
     let last=-1,lost=0;
     const loop=()=>{
       if(video.currentTime!==last){
