@@ -105,6 +105,31 @@ label,.legend{font-size:17px;font-weight:500}
 .input.bait.held{background:#fff8e6}
 .submit.bait.held{color:var(--ink)}
 .letgo{font:inherit;font-size:15px;font-weight:600;padding:12px 16px;background:var(--sticker);color:var(--ink);border:1.5px solid var(--ink);cursor:pointer}
+.mus{font:inherit;font-size:14px;font-weight:600;padding:11px 12px;background:var(--bg);color:var(--ink);border:1.5px solid var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.mus svg{width:16px;height:16px;fill:currentColor}
+.mus[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.mus:focus-visible,.again:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* the win: sticker falls off, the result takes the intro's place */
+.sticker.fall{animation:fall 1.5s cubic-bezier(.5,0,.75,.2) forwards}
+@keyframes fall{
+  0%{transform:rotate(-3deg) translateY(.12em)}
+  18%{transform:rotate(-12deg) translate(-.05em,-.12em)}
+  100%{transform:rotate(58deg) translate(.5em,110vh);opacity:0}}
+.result{grid-column:2;display:grid;gap:12px;justify-items:start;min-width:0;animation:rise .5s ease .9s both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.result p{margin:0}
+.r-line{font-size:20px;line-height:1.25}
+.r-line b{font-family:var(--display);font-stretch:125%;font-weight:900;font-variant-numeric:tabular-nums}
+.r-rate{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted)}
+.rate{font-family:var(--display);font-stretch:125%;font-weight:900;text-transform:uppercase;font-size:18px;color:var(--ink);
+  background:var(--sticker);border:1.5px solid var(--sticker-line);padding:4px 10px;transform:rotate(-2deg);display:inline-block}
+.again{font-size:16px;font-weight:600;padding:12px 18px;background:var(--ink);color:var(--bg);border-color:var(--ink)}
+/* once won, caught elements go back to looking like a calm, finished form */
+.won .bait.held{outline:none;background:var(--field);border-color:var(--line)}
+.won .input.bait.held{background:var(--field)}
+.won .submit.bait.held,.won .chip.bait.held[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.sticker.fall{animation:none;opacity:0}.result{animation:none}}
 
 /* camera dock */
 .dock{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));
@@ -123,14 +148,19 @@ label,.legend{font-size:17px;font-weight:500}
 @media (max-width:560px){
   /* fill the whole phone screen: the page is exactly one screen tall, the form stretches to the dock */
   .page{display:flex;flex-direction:column;
-    min-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
-    padding-block:12px calc(var(--dock-h,120px) + 14px)}
+    min-height:calc(100dvh - var(--dock-h,120px) - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+    padding-block:12px 18px}
+  /* on phones the bar sits under the form instead of floating over it */
+  .dock{position:static;padding-block:12px calc(env(safe-area-inset-bottom,0px) + 12px);border-top:1.5px solid var(--line)}
+  #musTxt{display:none}
   .coach{font-size:13px}
   .top{grid-template-columns:minmax(0,1fr);gap:14px}
   .back{font-size:15px;padding:10px 16px}
-  h1{font-size:clamp(30px,13.5vw,60px)}
+  h1{font-size:clamp(28px,11vw,56px)}
   .intro{grid-column:1;font-size:14px;gap:8px}
-  form{flex:1;margin-top:22px;gap:14px;justify-content:space-between}
+  .result{grid-column:1}
+  .r-line{font-size:18px}
+  form{flex:1;margin-top:22px;gap:14px;justify-content:space-between;touch-action:pan-y}
   label,.legend{font-size:15px}
   .input{padding:15px 14px;font-size:16px}
   /* every field on its own full-width row */
@@ -153,10 +183,16 @@ label,.legend{font-size:17px;font-weight:500}
 <div class="page">
   <div class="top">
     <button class="box back bait" type="button" id="back"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H4M9 4l-6 6 6 6"/></svg>(GO) BACK</button>
-    <h1 aria-label="Touch me not"><span class="row">Touch</span><span class="row">Me <span class="sticker">Not</span></span></h1>
-    <div class="intro">
+    <h1 aria-label="Touch me not"><span class="row">Touch</span><span class="row">Me <span class="sticker" id="sticker">Not</span></span></h1>
+    <div class="intro" id="intro">
       <p>This interface was created in the honour of the touch-me-not plant. the ui elements move whenever you try to come close to it.</p>
       <p>The interface uses MediaPipe Hand Landmarker and coordinate mapping to do the same.</p>
+    </div>
+    <div class="result" id="result" hidden>
+      <p class="r-line">Caught all <b id="rCount">11</b> in <b id="rTime">0s</b></p>
+      <p class="r-rate">Your rating <span class="rate" id="rRate">Full grab</span></p>
+      <p class="r-rate" id="rPinch"></p>
+      <button class="box again" id="again" type="button">Play again</button>
     </div>
   </div>
 
@@ -212,6 +248,7 @@ label,.legend{font-size:17px;font-weight:500}
   <span class="stat" id="hand">No hand</span>
   <span class="stat">Caught <b id="score">0</b></span>
   <button class="letgo" id="letGo" type="button" hidden>Let go</button>
+  <button class="mus" id="musBtn" type="button" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2v8.3A2.5 2.5 0 1 0 7.5 12.5V5.5l5-1.2v4.1A2.5 2.5 0 1 0 14 10.5V1z"/></svg><span id="musTxt">Music</span></button>
   <video id="preview" playsinline muted hidden></video>
   <button class="cam" id="camBtn" type="button">Use camera</button>
   <p class="note" id="note"></p>
@@ -235,7 +272,7 @@ function measure(){
 addEventListener('resize',()=>requestAnimationFrame(measure));
 addEventListener('orientationchange',()=>setTimeout(measure,300));
 // reserve exactly the space the bottom bar takes, so the form can stretch down to it
-const dockEl=document.querySelector('.dock');
+const dockEl=document.querySelector('.dock'),pageEl=document.querySelector('.page');
 new ResizeObserver(()=>{document.documentElement.style.setProperty('--dock-h',dockEl.offsetHeight+'px');requestAnimationFrame(measure)}).observe(dockEl);
 document.fonts?.ready.then(measure);
 
@@ -247,7 +284,7 @@ let threat=null;
 const active=new Map();
 const setPt=e=>{active.set(e.pointerId,{cx:e.clientX,cy:e.clientY,idx:true});pointerPts=[...active.values()]};
 addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&!active.has(e.pointerId))return;setPt(e)});
-addEventListener('pointerdown',e=>{if(e.pointerType==='touch')setPt(e)});
+addEventListener('pointerdown',e=>{markStart();if(e.pointerType==='touch')setPt(e)});
 const lift=e=>{if(e.pointerType!=='mouse'){active.delete(e.pointerId);pointerPts=[...active.values()]}};
 addEventListener('pointerup',lift);addEventListener('pointercancel',lift);
 document.documentElement.addEventListener('mouseleave',()=>{active.clear();pointerPts=[]});
@@ -255,13 +292,19 @@ document.documentElement.addEventListener('mouseleave',()=>{active.clear();point
 /* ---------- clicks that land anyway ---------- */
 const scoreEl=document.getElementById('score'),letGo=document.getElementById('letGo');
 const byEl=new Map(baits.map(b=>[b.el,b]));
-function refresh(){const n=baits.filter(b=>b.held).length;scoreEl.textContent=n;letGo.hidden=!n}
+let startTime=null,pinches=0,won=false;
+function markStart(){if(startTime==null&&!won)startTime=performance.now()}
+function refresh(){const n=baits.filter(b=>b.held).length;scoreEl.textContent=`${n}/${baits.length}`;letGo.hidden=!n||won}
 function hold(b){
-  if(!b||b.held)return;
+  if(!b||b.held||won)return;
+  markStart();
   b.held=true;b.vx=b.vy=0;b.el.classList.add('held');
   b.el.classList.remove('caught');void b.el.offsetWidth;b.el.classList.add('caught');refresh();
+  if(baits.every(x=>x.held))win();
 }
-letGo.addEventListener('click',()=>{for(const b of baits){b.held=false;b.el.classList.remove('held')}document.activeElement?.blur?.();refresh()});
+function releaseAll(){for(const b of baits){b.held=false;b.el.classList.remove('held','target')}document.activeElement?.blur?.();refresh()}
+letGo.addEventListener('click',releaseAll);
+refresh();
 // pinch over an element catches it: fields get focus so you can type, buttons get pressed
 function pinchCatch(cx,cy){
   for(const b of baits){
@@ -320,7 +363,7 @@ document.querySelectorAll('input.bait').forEach(el=>el.addEventListener('focus',
 document.getElementById('form').addEventListener('submit',e=>e.preventDefault());
 document.getElementById('reset').addEventListener('click',()=>{
   document.querySelectorAll('#form input').forEach(i=>i.value='');
-  document.querySelectorAll('[aria-pressed]').forEach(c=>c.setAttribute('aria-pressed','false'));
+  document.querySelectorAll('#form [aria-pressed]').forEach(c=>c.setAttribute('aria-pressed','false'));
 });
 
 /* ---------- frame loop ---------- */
@@ -350,6 +393,16 @@ function tick(){
   const tx=threat?threat.cx+scrollX:0, ty=threat?threat.cy+scrollY:0;
 
   const vw=document.documentElement.clientWidth;
+  // layout height only (offsetHeight ignores transforms), so a fleeing element can't stretch its own bounds
+  pageH=Math.max(innerHeight,pageEl.offsetTop+pageEl.offsetHeight+(getComputedStyle(dockEl).position==='static'?dockEl.offsetHeight:0));
+  // re-read every element's resting spot each frame (reads first, writes after) so layout changes never leave it stale;
+  // the box centre is unaffected by our rotate/scale, so centre minus our offset is the layout home
+  for(const b of baits){
+    if(b.held)continue;
+    const r=b.el.getBoundingClientRect();
+    b.hx=r.left+r.width/2+scrollX-b.x; b.hy=r.top+r.height/2+scrollY-b.y;
+    b.w=b.el.offsetWidth; b.h=b.el.offsetHeight;
+  }
   for(const b of baits){
     if(b.held)continue; // caught: it stays where you caught it
     const cx=b.hx+b.x, cy=b.hy+b.y;
@@ -392,6 +445,85 @@ function tick(){
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
+
+/* ---------- background music (generated live, no audio files) ----------
+   A soft pad under a pentatonic pluck. It speeds up and brightens as a hand gets close,
+   so the music panics with the interface. */
+const Music=(()=>{
+  let ctx,master,filter,delay,pad=[],next=0,step=0,timer=0,on=false;
+  const chords=[[57,60,64,67],[53,57,60,64],[48,52,55,60],[55,59,62,67]]; // Am7  Fmaj7  C  G
+  const scale=[69,72,74,76,79,81,84,86,88];                              // A minor pentatonic
+  const hz=m=>440*2**((m-69)/12);
+  function init(){
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);
+    delay=ctx.createDelay(1);delay.delayTime.value=.33;
+    const fb=ctx.createGain();fb.gain.value=.35;const wet=ctx.createGain();wet.gain.value=.3;
+    delay.connect(fb);fb.connect(delay);delay.connect(wet);wet.connect(master);
+    filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=700;filter.connect(master);
+    for(let i=0;i<4;i++){const o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';g.gain.value=.045;o.connect(g);g.connect(filter);o.start();pad.push(o)}
+  }
+  function pluck(t,m,vel){
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=hz(m);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.6);
+    o.connect(g);g.connect(master);g.connect(delay);o.start(t);o.stop(t+.65);
+  }
+  function tickMusic(){
+    const p=won?0:panic, eighth=60/(84+60*p)/2;
+    while(next<ctx.currentTime+.12){
+      if(step%16===0){const c=chords[(step/16)%4];pad.forEach((o,i)=>o.frequency.setTargetAtTime(hz(c[i]-12),next,.4))}
+      if(Math.random()<.45+.5*p){const m=scale[Math.floor(Math.random()*scale.length)];pluck(next,m+(p>.6&&Math.random()<.3?12:0),.08+.06*p)}
+      next+=eighth;step++;
+    }
+    filter.frequency.setTargetAtTime(600+2400*p,ctx.currentTime,.3);
+  }
+  return{
+    get on(){return on},
+    start(){if(!ctx)init();ctx.resume();on=true;next=ctx.currentTime+.05;master.gain.setTargetAtTime(.5,ctx.currentTime,.8);clearInterval(timer);timer=setInterval(tickMusic,25)},
+    stop(){if(!ctx)return;on=false;master.gain.setTargetAtTime(0,ctx.currentTime,.3);setTimeout(()=>{if(!on){clearInterval(timer);ctx.suspend()}},900)},
+    win(){if(!on)return;const t=ctx.currentTime+.05;[69,73,76,81,85,88,93].forEach((m,i)=>pluck(t+i*.09,m,.13))} // A major run-up
+  };
+})();
+const musBtn=document.getElementById('musBtn'),musTxt=document.getElementById('musTxt');
+function syncMusic(){musBtn.setAttribute('aria-pressed',Music.on);musTxt.textContent=Music.on?'Music on':'Music'}
+musBtn.addEventListener('click',()=>{Music.on?Music.stop():Music.start();syncMusic()});
+addEventListener('pagehide',()=>Music.stop());
+
+/* ---------- winning ---------- */
+const sticker=document.getElementById('sticker'),intro=document.getElementById('intro'),result=document.getElementById('result');
+function rating(s){return s<20?'Full grab':s<45?'One poke':s<90?'Leaning in':'Admiring'}
+function win(){
+  won=true;
+  const secs=Math.max(1,Math.round((performance.now()-(startTime??performance.now()))/1000));
+  document.getElementById('rCount').textContent=baits.length;
+  document.getElementById('rTime').textContent=secs<60?`${secs}s`:`${Math.floor(secs/60)}m ${secs%60}s`;
+  document.getElementById('rRate').textContent=rating(secs);
+  document.getElementById('rPinch').textContent=pinches?`${pinches} pinch${pinches===1?'':'es'} to get there`:'';
+  document.activeElement?.blur?.();
+  // everything snaps back home, held still
+  for(const b of baits){
+    b.x=b.y=b.vx=b.vy=0;b.fold=0;
+    b.el.style.transition='transform .7s cubic-bezier(.2,.8,.2,1)';b.el.style.transform='none';
+    setTimeout(()=>{b.el.style.transition=''},750);
+  }
+  document.body.classList.add('won');
+  // the NOT sticker peels off and falls: it now reads TOUCH ME
+  sticker.classList.add('fall');
+  sticker.addEventListener('animationend',()=>{sticker.hidden=true},{once:true});
+  if(reduce)sticker.hidden=true;
+  intro.hidden=true;result.hidden=false;
+  refresh();Music.win();
+}
+document.getElementById('again').addEventListener('click',()=>{
+  won=false;startTime=null;pinches=0;
+  document.body.classList.remove('won');
+  sticker.classList.remove('fall');sticker.hidden=false;
+  result.hidden=true;intro.hidden=false;
+  document.querySelectorAll('#form input').forEach(i=>i.value='');
+  document.querySelectorAll('#form [aria-pressed]').forEach(c=>c.setAttribute('aria-pressed','false'));
+  releaseAll();
+  requestAnimationFrame(measure);
+});
 
 /* ---------- camera hand tracking ---------- */
 const camBtn=document.getElementById('camBtn'),video=document.getElementById('preview'),note=document.getElementById('note');
@@ -472,7 +604,8 @@ async function startCamera(){
         if(handCursor){p.cx=handCursor.cx+(p.cx-handCursor.cx)*.55;p.cy=handCursor.cy+(p.cy-handCursor.cy)*.55} // smooth jitter
         const prog=Math.max(0,Math.min(1,(.9-cur.pinchD)/.55));
         handCursor={...p,idx:true,pinch,prog:pinch?1:prog};
-        if(pinch&&!was&&pinchCatch(p.cx,p.cy))caughtAt=performance.now();
+        markStart();
+        if(pinch&&!was){pinches++;if(pinchCatch(p.cx,p.cy))caughtAt=performance.now()}
       }
       hands2d=(res.landmarks||[]).map(lm=>lm.map(q=>toScreen(q.x,q.y)));
       if(best){threat=best;lost=0}else if(++lost>6){threat=null;handCursor=null;hands2d=[]} // brief dropouts don't reset
@@ -481,7 +614,11 @@ async function startCamera(){
   };
   loop();
 }
-camBtn.addEventListener('click',()=>{stream?stopCamera():startCamera()});
+camBtn.addEventListener('click',()=>{
+  if(stream){stopCamera();return}
+  if(!Music.on){Music.start();syncMusic()} // the tap is a user gesture, so sound is allowed to start
+  startCamera();
+});
 // release the camera if the tab is closed or hidden
 addEventListener('pagehide',()=>{if(stream)stopCamera()});
 </script>
