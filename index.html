@@ -377,7 +377,8 @@ html.fits body{overscroll-behavior:none}
 
 <script type="module">
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const RADIUS=140, PUSH=2.3, SPRING=0.05, DAMP=0.8, GUTTER=8;
+// RADIUS: how far away a fingertip is felt (px); PUSH: how hard it shoves
+const RADIUS=175, PUSH=2.8, SPRING=0.05, DAMP=0.8, GUTTER=8;
 
 /* ---------- fleeing elements ---------- */
 const baits=[...document.querySelectorAll('.bait')].map(el=>({el,hx:0,hy:0,w:0,h:0,x:0,y:0,vx:0,vy:0,fold:0}));
