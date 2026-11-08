@@ -1,0 +1,258 @@
+<title>Touch Me Not</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,900&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: the user's screen kept as-is (back button + stacked title, intro, gray form fields), extended downward
+   with more form fields and a mimosa sprig. Single light look, by design. Everything with .bait flees. */
+:root{
+  color-scheme:light;
+  --bg:#ffffff; --ink:#0b0b0b; --muted:#8e939c; --field:#eef1f5; --line:#d9dee5;
+  --sticker:#fde8bb; --sticker-line:#f4d48a; --req:#d0021b;
+  --leaf:#3f7d3a; --leaf-dark:#2b5a28; --stem:#6b5a3a; --bloom:#e874ad;
+  --display:"Archivo","Arial Black",Impact,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,sans-serif;
+}
+html{overflow-x:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);overflow-x:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-user-select:none;user-select:none}
+.page{max-width:680px;margin:0 auto;padding-block:16px 120px}
+
+/* header, matching the screenshot */
+.top{display:grid;grid-template-columns:auto 1fr;gap:16px 28px;align-items:start}
+.box{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:0;cursor:pointer}
+.back{font-size:18px;font-weight:500;padding:14px 22px;letter-spacing:.01em}
+h1{margin:0;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:clamp(34px,10.5vw,68px);
+  line-height:.86;letter-spacing:-.01em;text-transform:uppercase}
+h1 .row{display:flex;align-items:center;gap:.08em}
+.sticker{display:inline-block;background:var(--sticker);border:1.5px solid var(--sticker-line);
+  padding:.14em .2em .1em;transform:rotate(-3deg) translateY(.12em);margin-right:-.15em}
+.word{display:inline-block}
+.intro{grid-column:2;font-size:16px;line-height:1.25;margin:0;max-width:44ch;display:grid;gap:14px}
+.intro p{margin:0}
+
+/* form */
+form{margin-top:44px;display:flex;flex-direction:column;gap:26px;touch-action:none}
+.f{display:flex;flex-direction:column;gap:10px}
+label,.legend{font-size:17px;font-weight:500}
+.req{color:var(--req)}
+.input{font:inherit;font-size:16px;padding:16px 22px;width:100%;box-sizing:border-box;-webkit-user-select:text;user-select:text}
+.input::placeholder{color:#b0b5bd}
+.input:focus{outline:2px solid var(--ink);outline-offset:-2px}
+.half{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{font-size:15px;padding:11px 16px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.check{display:flex;align-items:center;gap:12px;font-size:16px;padding:14px 18px;align-self:flex-start;text-align:left}
+.check .tick{width:20px;height:20px;border:1.5px solid var(--ink);background:var(--bg);display:grid;place-items:center;flex:none}
+.check[aria-pressed="true"] .tick::after{content:"";width:10px;height:10px;background:var(--ink)}
+.row-end{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.submit{font-family:var(--display);font-stretch:125%;font-weight:900;font-size:20px;text-transform:uppercase;
+  background:var(--ink);color:var(--bg);border-color:var(--ink);padding:16px 30px}
+.reset{font-size:16px;padding:16px 22px}
+.bait{will-change:transform;position:relative}
+.bait:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.bait.caught{animation:caught .45s ease}
+@keyframes caught{40%{background:var(--sticker)}}
+
+.top{touch-action:none}
+
+/* fingertips */
+.tip{position:fixed;left:0;top:0;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;pointer-events:none;z-index:30;
+  border:1.5px solid var(--ink);background:rgba(253,232,187,.55);opacity:0;transition:opacity .15s}
+.tip.on{opacity:1}
+.tip.idx{width:30px;height:30px;margin:-15px 0 0 -15px;background:rgba(253,232,187,.85)}
+
+/* camera dock */
+.dock{position:fixed;right:max(16px,calc(env(safe-area-inset-right,0px) + 12px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+  z-index:40;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 32px)}
+.cam{font:inherit;font-size:15px;font-weight:600;padding:12px 16px;background:var(--ink);color:var(--bg);border:0;cursor:pointer}
+.cam:disabled{opacity:.6}
+.cam:focus-visible{outline:2px solid var(--sticker-line);outline-offset:2px}
+#preview{width:64px;height:48px;object-fit:cover;transform:scaleX(-1);border:1.5px solid var(--ink);background:var(--field)}
+.stat{font-size:13px;background:var(--bg);border:1.5px solid var(--line);padding:8px 10px;font-variant-numeric:tabular-nums}
+.note{flex-basis:100%;text-align:right;font-size:13px;background:var(--bg);color:var(--req);margin:0;padding:6px 8px;border:1.5px solid var(--line)}
+.note:empty{display:none}
+
+@media (max-width:420px){
+  .half{grid-template-columns:1fr}
+  .back{font-size:16px;padding:12px 16px}
+}
+</style>
+
+<div class="page">
+  <div class="top">
+    <button class="box back bait" type="button" id="back">(GO) BACK</button>
+    <h1 aria-label="Touch me not"><span class="row"><span class="word bait">Touch</span></span><span class="row"><span class="word bait">Me</span> <span class="word bait"><span class="sticker">Not</span></span></span></h1>
+    <div class="intro">
+      <p>This interface was created in the honour of the touch-me-not plant. the ui elements move whenever you try to come close to it.</p>
+      <p>The interface uses MediaPipe Hand Landmarker and coordinate mapping to do the same.</p>
+    </div>
+  </div>
+
+  <form id="form" novalidate>
+    <div class="f">
+      <label for="email">Email<span class="req">*</span></label>
+      <input class="box input bait" id="email" type="email" placeholder="name@example.com" autocomplete="email">
+    </div>
+
+    <div class="half">
+      <div class="f">
+        <label for="name">Name</label>
+        <input class="box input bait" id="name" type="text" placeholder="Annanya" autocomplete="given-name">
+      </div>
+      <div class="f">
+        <label for="city">City</label>
+        <input class="box input bait" id="city" type="text" placeholder="Delhi">
+      </div>
+    </div>
+
+    <div class="f">
+      <span class="legend" id="closeLbl">How close dare you get?</span>
+      <div class="chips" role="group" aria-labelledby="closeLbl">
+        <button type="button" class="box chip bait" data-group="close" aria-pressed="false">Admiring</button>
+        <button type="button" class="box chip bait" data-group="close" aria-pressed="false">Leaning in</button>
+        <button type="button" class="box chip bait" data-group="close" aria-pressed="false">One poke</button>
+        <button type="button" class="box chip bait" data-group="close" aria-pressed="false">Full grab</button>
+      </div>
+    </div>
+
+    <button type="button" class="box check bait" id="promise" aria-pressed="false"><span class="tick"></span>I promise not to touch anything</button>
+
+    <div class="row-end">
+      <button type="submit" class="box submit bait" id="submit">Submit</button>
+      <button type="button" class="box reset bait" id="reset">Clear</button>
+    </div>
+  </form>
+
+</div>
+
+<div class="dock">
+  <span class="stat">Caught <b id="score">0</b></span>
+  <video id="preview" playsinline muted hidden></video>
+  <button class="cam" id="camBtn" type="button">Use camera</button>
+  <p class="note" id="note"></p>
+</div>
+
+<script type="module">
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const RADIUS=140, PUSH=2.3, SPRING=0.05, DAMP=0.8;
+
+/* ---------- fleeing elements ---------- */
+const baits=[...document.querySelectorAll('.bait')].map(el=>({el,hx:0,hy:0,w:0,h:0,x:0,y:0,vx:0,vy:0,fold:0}));
+let pageW=0,pageH=0;
+function measure(){
+  pageW=document.documentElement.clientWidth;
+  pageH=Math.max(document.documentElement.scrollHeight,innerHeight);
+  for(const b of baits){
+    const r=b.el.getBoundingClientRect();
+    // undo our own transform: rect center minus current offset, in page coords
+    b.w=b.el.offsetWidth;b.h=b.el.offsetHeight;
+    b.hx=r.left+r.width/2+scrollX-b.x; b.hy=r.top+r.height/2+scrollY-b.y;
+  }
+}
+addEventListener('resize',()=>requestAnimationFrame(measure));
+document.fonts?.ready.then(measure);
+
+/* ---------- inputs ---------- */
+const tips=[];
+function tipEl(i){if(!tips[i]){const d=document.createElement('div');d.className='tip';document.body.appendChild(d);tips[i]=d}return tips[i]}
+let pointerPts=[],handPts=[],camOn=false;
+const active=new Map();
+const setPt=e=>{active.set(e.pointerId,{cx:e.clientX,cy:e.clientY,idx:true});pointerPts=[...active.values()]};
+addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&!active.has(e.pointerId))return;setPt(e)});
+addEventListener('pointerdown',e=>{if(e.pointerType==='touch')setPt(e)});
+const lift=e=>{if(e.pointerType!=='mouse'){active.delete(e.pointerId);pointerPts=[...active.values()]}};
+addEventListener('pointerup',lift);addEventListener('pointercancel',lift);
+document.documentElement.addEventListener('mouseleave',()=>{active.clear();pointerPts=[]});
+
+/* ---------- clicks that land anyway ---------- */
+let score=0;
+const caught=el=>{score++;document.getElementById('score').textContent=score;el.classList.remove('caught');void el.offsetWidth;el.classList.add('caught')};
+document.querySelectorAll('button.bait').forEach(el=>el.addEventListener('click',()=>{
+  caught(el);
+  if(el.dataset.group){document.querySelectorAll(`[data-group="${el.dataset.group}"]`).forEach(c=>c.setAttribute('aria-pressed',c===el))}
+  else if(el.hasAttribute('aria-pressed'))el.setAttribute('aria-pressed',el.getAttribute('aria-pressed')!=='true');
+}));
+document.querySelectorAll('input.bait').forEach(el=>el.addEventListener('focus',()=>caught(el)));
+document.getElementById('form').addEventListener('submit',e=>{e.preventDefault()});
+document.getElementById('reset').addEventListener('click',()=>{
+  document.getElementById('form').querySelectorAll('input').forEach(i=>i.value='');
+  document.querySelectorAll('[aria-pressed]').forEach(c=>c.setAttribute('aria-pressed','false'));
+});
+
+/* ---------- frame loop ---------- */
+measure();
+function tick(){
+  const raw=handPts.length?handPts:pointerPts;
+  const pts=raw.map(p=>({x:p.cx+scrollX,y:p.cy+scrollY,idx:p.idx}));
+  raw.forEach((p,i)=>{const t=tipEl(i);t.classList.add('on');t.classList.toggle('idx',!!p.idx);t.style.transform=`translate(${p.cx}px,${p.cy}px)`});
+  for(let i=raw.length;i<tips.length;i++)tips[i].classList.remove('on');
+
+  for(const b of baits){
+    const cx=b.hx+b.x, cy=b.hy+b.y;
+    let fx=0,fy=0,near=0;
+    for(const p of pts){
+      const dx=cx-p.x, dy=cy-p.y;
+      const d=Math.hypot(Math.max(Math.abs(dx)-b.w/2,0),Math.max(Math.abs(dy)-b.h/2,0));
+      if(d<RADIUS){
+        const k=1-d/RADIUS, len=Math.hypot(dx,dy)||1, s=k*k*PUSH*(p.idx?1.4:1)*10;
+        fx+=dx/len*s; fy+=dy/len*s; near=Math.max(near,k);
+      }
+    }
+    b.vx=(b.vx+fx-b.x*SPRING)*DAMP; b.vy=(b.vy+fy-b.y*SPRING)*DAMP;
+    b.x+=b.vx; b.y+=b.vy;
+    // stay on the page
+    const minX=16+b.w/2-b.hx, maxX=pageW-16-b.w/2-b.hx, minY=8+b.h/2-b.hy, maxY=pageH-8-b.h/2-b.hy;
+    if(minX>maxX)b.x=0; else if(b.x<minX){b.x=minX;b.vx*=-.4}else if(b.x>maxX){b.x=maxX;b.vx*=-.4}
+    if(b.y<minY){b.y=minY;b.vy*=-.4}else if(b.y>maxY){b.y=maxY;b.vy*=-.4}
+    // fold shut quickly, reopen slowly, like the plant
+    b.fold=near>b.fold?b.fold+(near-b.fold)*.35:b.fold*.96;
+    const rot=reduce?0:Math.max(-10,Math.min(10,b.vx*.8));
+    b.el.style.transform=`translate(${b.x.toFixed(1)}px,${b.y.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scaleY(${(1-b.fold*.18).toFixed(3)})`;
+  }
+
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ---------- camera hand tracking ---------- */
+const camBtn=document.getElementById('camBtn'),video=document.getElementById('preview'),note=document.getElementById('note');
+const TIPS=[4,8,12,16,20];
+camBtn.addEventListener('click',async()=>{
+  note.textContent='';camBtn.disabled=true;camBtn.textContent='Starting…';
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480},audio:false})}
+  catch{
+    camBtn.disabled=false;camBtn.textContent='Use camera';
+    note.textContent='Camera is blocked on this page. Open the file from an https:// link to hover with your hand. Touch and mouse work here.';
+    return;
+  }
+  video.srcObject=stream;video.hidden=false;await video.play();
+  camBtn.textContent='Loading hand model…';
+  try{
+    const v='0.10.14';
+    const {FilesetResolver,HandLandmarker}=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/vision_bundle.mjs`);
+    const files=await FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}/wasm`);
+    const hands=await HandLandmarker.createFromOptions(files,{
+      baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},
+      runningMode:'VIDEO',numHands:2});
+    camOn=true;camBtn.textContent='Camera on';
+    let last=-1;
+    const loop=()=>{
+      if(video.currentTime!==last){
+        last=video.currentTime;
+        const res=hands.detectForVideo(video,performance.now()), out=[];
+        for(const lm of res.landmarks||[])for(const i of TIPS)out.push({cx:(1-lm[i].x)*innerWidth,cy:lm[i].y*innerHeight,idx:i===8});
+        handPts=out;
+      }
+      requestAnimationFrame(loop);
+    };
+    loop();
+  }catch{
+    camBtn.disabled=false;camBtn.textContent='Use camera';
+    note.textContent='The hand model could not load. Check your connection and try again.';
+  }
+});
+</script>
