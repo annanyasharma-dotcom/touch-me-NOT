@@ -278,6 +278,47 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.35;display:block}
 /* only the window clips (at the real screen edge); the page box itself never cuts elements off */
 html.fits{overflow:hidden;overscroll-behavior:none}
 html.fits body{overscroll-behavior:none}
+
+/* phone popup: suggest a laptop */
+.mob{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(11,11,11,.55);
+  padding:calc(env(safe-area-inset-top,0px) + 16px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));
+  touch-action:none;animation:mobIn .25s ease both}
+@keyframes mobIn{from{opacity:0}}
+.mob-card{width:min(360px,100%);background:var(--bg);border:1.5px solid var(--ink);box-shadow:0 6px 0 var(--ink);
+  padding:22px 20px 20px;display:grid;gap:14px;position:relative}
+.mob-tag{justify-self:start;font-family:var(--display);font-stretch:125%;font-weight:900;text-transform:uppercase;font-size:13px;
+  background:var(--sticker);border:1.5px solid var(--sticker-line);padding:4px 8px;transform:rotate(-3deg)}
+.mob h2{margin:0;font-family:var(--display);font-stretch:125%;font-weight:900;text-transform:uppercase;font-size:26px;line-height:.95;letter-spacing:-.01em;text-wrap:balance}
+.mob p{margin:0;font-size:15px;line-height:1.4}
+.mob-link{display:flex;border:1.5px solid var(--line);background:var(--field);min-width:0}
+.mob-link span{flex:1;min-width:0;padding:10px 12px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-user-select:all;user-select:all}
+.mob-link button{font:inherit;font-size:14px;font-weight:600;border:0;border-left:1.5px solid var(--line);background:var(--sticker);color:var(--ink);padding:0 14px;cursor:pointer}
+.mob-go{font:inherit;font-size:15px;font-weight:600;padding:13px 16px;background:var(--ink);color:var(--bg);border:0;cursor:pointer}
+.mob-copied{font-size:13px;color:var(--muted);min-height:1em;margin-top:-6px}
+.mob button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* phone popup: suggests opening on a laptop */
+.desk{position:fixed;inset:0;z-index:100;display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  background:rgba(11,11,11,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:deskIn .25s ease both}
+@keyframes deskIn{from{opacity:0}}
+.desk-card{position:relative;width:100%;max-width:380px;background:var(--bg);border:1.5px solid var(--ink);box-shadow:6px 6px 0 var(--ink);
+  padding:26px 22px 20px;display:grid;gap:14px;animation:deskUp .35s cubic-bezier(.2,.8,.2,1) both}
+@keyframes deskUp{from{transform:translateY(18px) rotate(-1deg);opacity:0}}
+.desk-tag{position:absolute;top:-14px;left:18px;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:14px;text-transform:uppercase;
+  background:var(--sticker);border:1.5px solid var(--sticker-line);padding:4px 9px;transform:rotate(-4deg)}
+.desk h2{margin:0;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:27px;line-height:.95;text-transform:uppercase;letter-spacing:-.01em}
+.desk h2 span{background:var(--sticker);border:1.5px solid var(--sticker-line);padding:0 .12em;display:inline-block;transform:rotate(-2deg)}
+.desk p{margin:0;font-size:15px;line-height:1.4;color:var(--ink)}
+.desk ul{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:14px;line-height:1.35}
+.desk li{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}
+.desk li b{font-family:var(--display);font-stretch:125%;font-weight:900;font-size:13px;width:22px;height:22px;display:grid;place-items:center;background:var(--field);border:1.5px solid var(--line)}
+.desk-link{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--field);padding:4px 4px 4px 10px;min-width:0}
+.desk-link code{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-user-select:all;user-select:all}
+.desk-copy{font:inherit;font-size:14px;font-weight:600;padding:9px 12px;background:var(--ink);color:var(--bg);border:0;cursor:pointer;white-space:nowrap}
+.desk-anyway{font:inherit;font-size:15px;font-weight:600;padding:12px;background:transparent;color:var(--ink);border:1.5px solid var(--ink);cursor:pointer}
+.desk-copy:focus-visible,.desk-anyway:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.desk,.desk-card{animation:none}}
 </style>
 </head>
 <body>
@@ -355,10 +396,34 @@ html.fits body{overscroll-behavior:none}
 
 <div class="edge l" id="edgeL"></div>
 <div class="edge r" id="edgeR"></div>
+<div class="mob" id="mob" role="dialog" aria-modal="true" aria-labelledby="mobH" hidden>
+  <div class="mob-card">
+    <span class="mob-tag">Psst</span>
+    <h2 id="mobH">It's shy on small screens</h2>
+    <p>Touch Me Not watches your hand through the camera and needs room to run. On a phone it's cramped and your hand blocks the view. Open it on a laptop. It's worth it.</p>
+    <div class="mob-link"><span id="mobUrl"></span><button type="button" id="mobCopy">Copy link</button></div>
+    <div class="mob-copied" id="mobMsg" role="status"></div>
+    <button class="mob-go" type="button" id="mobGo">Try it here anyway</button>
+  </div>
+</div>
 <canvas class="handcv" id="handcv" aria-hidden="true"></canvas>
 <div class="cursor" id="cursor" aria-hidden="true"><span class="lbl" id="cursorLbl">Pinch to catch</span></div>
 
 
+<div class="desk" id="desk" role="dialog" aria-modal="true" aria-labelledby="deskH" hidden>
+  <div class="desk-card">
+    <span class="desk-tag">Psst</span>
+    <h2 id="deskH">Get a bigger <span>screen</span></h2>
+    <p>Touch Me Not is made for a laptop or desktop. Trust us, it's worth the switch.</p>
+    <ul>
+      <li><b>1</b><span>A wide screen gives every element room to run from you.</span></li>
+      <li><b>2</b><span>Your whole hand fits in the camera, so pinching feels natural.</span></li>
+      <li><b>3</b><span>Nothing slips off a tiny screen before you can catch it.</span></li>
+    </ul>
+    <div class="desk-link"><code id="deskUrl"></code><button class="desk-copy" id="deskCopy" type="button">Copy link</button></div>
+    <button class="desk-anyway" id="deskAnyway" type="button">Try it on my phone anyway</button>
+  </div>
+</div>
 <div class="dock">
   <div class="coach-row">
     <div class="coach" id="coach">
@@ -376,6 +441,27 @@ html.fits body{overscroll-behavior:none}
 </div>
 
 <script type="module">
+/* ---------- phone popup ---------- */
+{
+  const desk=document.getElementById('desk');
+  const phone=matchMedia('(pointer: coarse)').matches&&Math.min(screen.width,screen.height)<700;
+  let seen=false;try{seen=sessionStorage.getItem('tmn-desk')==='1'}catch{}
+  if(phone&&!seen){
+    desk.hidden=false;
+    const url='https://touchmenot-five.vercel.app/';
+    document.getElementById('deskUrl').textContent=url;
+    const copy=document.getElementById('deskCopy');
+    copy.addEventListener('click',()=>{
+      navigator.clipboard.writeText(url).then(()=>{copy.textContent='Copied'},()=>{
+        const r=document.createRange();r.selectNodeContents(document.getElementById('deskUrl'));
+        const sel=getSelection();sel.removeAllRanges();sel.addRange(r);copy.textContent='Select & copy';
+      });
+    });
+    document.getElementById('deskAnyway').addEventListener('click',()=>{
+      desk.hidden=true;try{sessionStorage.setItem('tmn-desk','1')}catch{}
+    });
+  }
+}
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 // RADIUS: how far away a fingertip is felt (px); PUSH: how hard it shoves
 const RADIUS=175, PUSH=2.8, SPRING=0.05, DAMP=0.8, GUTTER=8;
@@ -497,6 +583,29 @@ document.getElementById('reset').addEventListener('click',()=>{
   document.querySelectorAll('#form input').forEach(i=>i.value='');
   document.querySelectorAll('#form [aria-pressed]').forEach(c=>c.setAttribute('aria-pressed','false'));
 });
+
+/* ---------- phone popup ---------- */
+(()=>{
+  const mob=document.getElementById('mob');
+  const small=Math.min(screen.width,screen.height)<768;
+  const touchOnly=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+  const isPhone=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)||(touchOnly&&small);
+  let seen=false;try{seen=sessionStorage.getItem('tmn-mob')==='1'}catch{}
+  if(!isPhone||seen)return;
+  const url=location.href.split('#')[0];
+  document.getElementById('mobUrl').textContent=url;
+  mob.hidden=false;
+  // the game behind shouldn't react while the popup is up
+  ['pointermove','pointerdown','pointerup'].forEach(t=>mob.addEventListener(t,e=>e.stopPropagation()));
+  const msg=document.getElementById('mobMsg');
+  document.getElementById('mobCopy').addEventListener('click',async()=>{
+    try{await navigator.clipboard.writeText(url);msg.textContent='Link copied. Send it to your laptop.'}
+    catch{const r=document.createRange();r.selectNodeContents(document.getElementById('mobUrl'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);msg.textContent='Link selected. Copy it to open on your laptop.'}
+  });
+  document.getElementById('mobGo').addEventListener('click',()=>{
+    mob.hidden=true;try{sessionStorage.setItem('tmn-mob','1')}catch{}
+  });
+})();
 
 /* ---------- frame loop ---------- */
 const edgeL=document.getElementById('edgeL'),edgeR=document.getElementById('edgeR'),handEl=document.getElementById('hand');
