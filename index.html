@@ -422,6 +422,8 @@ html.fits body{overscroll-behavior:none}
   let seen=false;try{seen=sessionStorage.getItem('tmn-desk')==='1'}catch{}
   if(phone&&!seen){
     desk.hidden=false;
+    // the game behind shouldn't react while the popup is up
+    ['pointermove','pointerdown','pointerup'].forEach(t=>desk.addEventListener(t,e=>e.stopPropagation()));
     const url='https://touchmenot-five.vercel.app/';
     document.getElementById('deskUrl').textContent=url;
     const copy=document.getElementById('deskCopy');
