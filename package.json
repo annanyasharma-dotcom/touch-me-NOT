@@ -1,5 +1,8 @@
 {
   "name": "touch-me-not",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@vercel/speed-insights": "^2.1.0"
+  }
 }
